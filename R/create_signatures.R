@@ -1,249 +1,304 @@
-library(singscore)
-library(SummarizedExperiment)
-library(GSEABase)
-library(ggplot2)
-library(ggrepel)
 
-get_label_list <- function(ref_list) {
-  lapply(ref_list, function(ref) {
-    levels(as.factor(ref$label.fine))
-  })
-}
+# This function return signature genes per: (# of celltypes -1) to per_cells*(# of celltypes -1)
+genesOut <- function(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells){
 
-
-reference <- readRDS(file = "~/Documents/xCell2.0/xCell2.0_Dev/training/compendium_data/microarray_CV_ref_list.rds")
-labels <- get_label_list(reference)
-
-createSignaturesV1() <- function(reference, labels, quantile_interval = 0.0001, min_prob = 0.0001, max_genes = 100, min_genes = 5,
-                               diff_vals, use_counts = FALSE, plot = TRUE){
-
-  if (is.list(reference)) {
-    for (ref in names(reference)) {
-      ref_name <- "hpca" # Remove
-
-      ref <- reference[[ref_name]]  # SE object
-      ref_labels <- labels[[ref_name]]  # Cell types
-
-      celltype_signatures_list <- list()
-
-
-      for (ctoi in ref_labels) {
-        overall_ctoi_up_genes <- c()
-        overall_ctoi_down_genes <- c()
-
-        for (celltype in ref_labels) {
-          #ctoi <- "Astrocyte" # Remove
-          #celltype <- "B cell" # Remove
-
-          if (ctoi == celltype) {
-            next
-          }
-
-          # Rank genes
-          ctoi_ranked <- rankGenes(assays(ref[, ref$label.fine == ctoi])$logcounts)
-          celltype_ranked <- rankGenes(assays(ref[, ref$label.fine == celltype])$logcounts)
-
-          # Get the mean rank
-          ctoi_ranked_avg <-  apply(ctoi_ranked, 1, mean)
-          celltype_ranked_avg <- apply(celltype_ranked, 1, mean)
-
-          # Get the difference in mean ranks
-          rank_diff <- ctoi_ranked_avg - celltype_ranked_avg
-
-          # Find up and down expressed genes in the CTOI
-          up_genes <- c()
-          down_genes <- c()
-          while (length(up_genes) < min_genes && length(down_genes) < min_genes) {
-            up_genes <- unique(c(up_genes, names(rank_diff[rank_diff > quantile(rank_diff, 1-min_prob)])))
-            down_genes <- unique(c(down_genes, names(rank_diff[rank_diff < quantile(rank_diff, min_prob)])))
-            min_prob <- min_prob + quantile_interval
-          }
-
-          # Keep up and down genes against all cell types
-          overall_ctoi_up_genes <- c(overall_ctoi_up_genes, up_genes)
-          overall_ctoi_down_genes <- c(overall_ctoi_down_genes, down_genes)
+  # Find genes signature for similar cell types
+  sim_genes_out <- c()
+  if (!is.null(sim_cells)) {
+    if (length(sim_cells) == 1) {
+      sim_genes_passed <- diff_genes.mat[sim_cells,]
+    }else{
+      sim_cells_diff_genes.mat <- diff_genes.mat[rownames(diff_genes.mat) %in% sim_cells,]
+      for (i in length(sim_cells):1) {
+        sim_genes_passed <- colSums(sim_cells_diff_genes.mat) >= i
+        if (sum(sim_genes_passed) > 0) {
+          sim_genes_out <- names(which(sim_genes_passed))
+          break
         }
-
-
-        # min_prob <- min_prob - quantile_interval
-        # Plot histogram of rank_diff quantiles
-        # if (plot) {
-        #   df <- data.frame(celltype = "T cell", rank_diff = rank_diff, genes = names(rank_diff))
-        #   ggplot(df, aes(x=celltype, y=rank_diff, col=celltype)) +
-        #     scale_y_continuous(breaks = c(quantile(rank_diff, min_prob), quantile(rank_diff, 1-min_prob))) +
-        #     geom_point(position = position_jitter(seed = 1, width = 0.2), alpha = 0.2) +
-        #     geom_violin() +
-        #     geom_label_repel(data = df[df$genes %in% c(up_genes, down_genes),], aes(celltype, rank_diff, label = genes),
-        #                     color = "black", size=3, box.padding = 0.5) +
-        #     labs(y="Difference in gene rank", x="", col="") +
-        #     theme_minimal(base_size = 11)
-        # }
-
-
       }
     }
+  }
+
+
+  # Find gene signature for all cell types
+  n_cells <- nrow(diff_genes.mat):as.integer(per_cells*nrow(diff_genes.mat))
+  genes_out <- vector(mode = "list", length = length(n_cells))
+  remove_empty <- c()
+  for (n in 1:length(n_cells)){
+    genes_passed <- names(which(colSums(diff_genes.mat) >= n_cells[n]))
+
+    # If not genes found - remove this n_cells value
+    if (length(genes_passed) == 0) {
+      remove_empty <- c(remove_empty, n)
+      next
+    }
+
+    # If genes_passed reach max_genes - go to the next n_cells
+    if (length(genes_passed) >= max_genes) {
+      genes_out[n][[1]] <- genes_passed[1:max_genes]
+      next
+    }
+
+    # Add genes of similar cell types
+    all_genes_passed <- unique(c(genes_passed, sim_genes_out))
+
+    # If all_genes_passed reach max_genes - go to the next n_cells
+    if (length(all_genes_passed) >= max_genes) {
+      genes_out[n][[1]] <- all_genes_passed[1:max_genes]
+      next
+    }
+
+    # If not enough genes - remove this n_cells value
+    if (length(all_genes_passed) < min_genes) {
+      remove_empty <- c(remove_empty, n)
+      next
+    }
+
+    genes_out[n][[1]] <- all_genes_passed
+
+  }
+
+  # Remove # of cell type without any genes found
+  if (!is.null(remove_empty)) {
+    genes_out <- genes_out[-remove_empty]
+    names(genes_out) <- as.character(n_cells)[-remove_empty]
   }else{
-
-    if (use_counts) {
-
-      else{
-
-      }
-    }
+    names(genes_out) <- as.character(n_cells)
   }
+
+  return(genes_out)
+}
+
+# This function return signature genes per # of celltypes per quantiles
+quantilesGenesOut <- function(quantiles_matrix, quantiles, type, diff, min_genes, max_genes, per_cells, sim_cells){
+
+  quantiles_genes_out <- vector(mode = "list", length = as.integer(length(quantiles)/2 + 0.5))
+  for (j in 1:as.integer(length(quantiles)/2 + 0.5)) {
+    names(quantiles_genes_out)[j] <- paste0(round(quantiles[j], 2)*100, "%,",
+                                            round(quantiles[length(quantiles)-(j-1)], 2)*100, "%")
+
+    # Get diff_genes for this diff and quantile values
+    type_id <- which(names(quantiles_matrix) == type)
+    diff_genes <- lapply(quantiles_matrix[-type_id],
+                         function(x) quantiles_matrix[[type_id]][j,] > x[length(quantiles)-(j-1),]+diff)
+    diff_genes.mat <- matrix(unlist(diff_genes), nrow = length(diff_genes), byrow = TRUE)
+    colnames(diff_genes.mat) <- colnames(quantiles_matrix[[type_id]])
+    rownames(diff_genes.mat) <- names(quantiles_matrix)[-type_id]
+
+    # Select genes
+    genes_out <- genesOut(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells)
+    if (length(genes_out) == 0) {
+      next
+    }
+    quantiles_genes_out[j][[1]] <- genes_out
+  }
+
+  # If all quantiles values are empty - return NULL
+  quantiles_genes_out <- Filter(Negate(is.null), quantiles_genes_out)
+  if (length(quantiles_genes_out) == 0) {
+    return(NULL)
+  }
+  return(quantiles_genes_out)
 }
 
 
-create
+diffQuantilesGenesOut <- function(diff_vals, quantiles_matrix, quantiles, min_genes, max_genes, per_cells, type, sim_cells){
 
+  diff_quantiles_genes_out <- vector(mode = "list", length = length(diff_vals))
+  for (i in 1:length(diff_vals)) {
+    quantilesGenes_out <- quantilesGenesOut(quantiles_matrix, quantiles, type, diff_vals[i], min_genes, max_genes,
+                                            per_cells, sim_cells)
 
-
-
-
-
-
-## Creating signatures with counts of genes (Florian) ----
-createSignatures_flo <- function(expr, main_labels, probs, diff_vals) {
-  celltype_signatures_hash <- hash()
-  for(celltype in main_labels) {
-    ## subset reference data
-    in_ref <- assays(expr[, expr$label.main == celltype])$logcount
-    out_ref <- assays(expr[, expr$label.main != celltype])$logcount
-    ## get quantiles for each gene in both subsets:
-    in_q <- apply(in_ref, 1, function(x) {quantile(x, probs, na.rm = TRUE)})
-    out_q <- apply(out_ref, 1, function(x) {quantile(x, 1-probs, na.rm = TRUE)})
-    gene_ids <- row.names(expr)
-    #cf <- matrix(nrow = length(diff_vals)); len_probs <- length(probs)
-    signature_list <- list()
-    for(pidx in seq(length(probs))) {
-      p <- paste0("prob_",probs[pidx])
-      for(x in diff_vals) {
-        d <- paste0("diff_",x)
-        gene_vec <- gene_ids[as.vector(in_q[pidx, ] > (out_q[pidx, ] + x))]
-        if(length(gene_vec) > 8 && length(gene_vec) < 200) {
-          gs_name <- paste(celltype,d,p,sep = "+")
-          gs <- GeneSet(gene_vec, setName = gs_name)
-          signature_list[[gs_name]] <- gs
-        }
-      }
+    if (length(quantilesGenes_out) == 0) {
+      next
     }
-    celltype_signatures_hash[[celltype]] <- signature_list
+
+    diff_quantiles_genes_out[i][[1]] <- quantilesGenes_out
+    names(diff_quantiles_genes_out)[i] <- as.character(diff_vals[i])
   }
-  return(celltype_signatures_hash)
+
+  diff_quantiles_genes_out <- Filter(Negate(is.null), diff_quantiles_genes_out)
+
+  if (length(diff_quantiles_genes_out) == 0) {
+    return(NULL)
+  }
+  return(diff_quantiles_genes_out)
 }
 
 
+# # Load this for debugging (Remove):
+# ref <- readRDS("~/Documents/xCell2.0/HPCA.RData")
+# counts <- ref@assays@data$logcount
+# samples <- ref$label.ont
+# celltypes <- unique(samples[!is.na(samples)])
+#  quantiles = c(.1, .25, .33333333, .5, .6666666, .75, .9)
+# diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
+# type_id = 1; per_cells = .95; min_genes = 7;  max_genes = 200; cor_cells_cutoff = .92
+# type = "CL:0000840"
+#
+# celltype_cor_mat <- readRDS("~/Documents/xCell2.0/xCell2/data_for_dev/celltype_cor_mat.RData")
+# dep_list <- readRDS("~/Documents/xCell2.0/xCell2/data_for_dev/dep_list.RData")
+# quantiles_matrix <- readRDS("~/Documents/xCell2.0/quantiles_matrix.RData")
 
-# Required libraries and functions:
-library(singscore)
-library(SummarizedExperiment)
-library(GSEABase)
 
-get_label_list <- function(ref_list) {
-  lapply(ref_list, function(ref) {
-    levels(as.factor(ref$label.fine))
+
+createSignatures <- function(counts, samples, celltypes, dep_list = NULL, celltype_cor_mat = NULL,
+                             diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
+                             quantiles = c(.1, .25, .33333333, .5, .6666666, .75, .9),
+                             min_genes = 7, max_genes = 200, per_cells = .95, cor_cells_cutoff = .92){
+
+
+  # (1) Calculate quantiles for each cell type
+  message("Calculating quantiles...")
+
+  quantiles_matrix <- lapply(celltypes, function(type){
+    # If there is one sample for this cell type - duplicate the sample to make a data frame
+    if (sum(samples == type, na.rm = TRUE) == 1) {
+      type.df <- cbind(counts[,samples==type & !is.na(samples)], counts[,samples==type & !is.na(samples)])
+    }else{
+      type.df <- counts[,samples==type & !is.na(samples)]
+    }
+    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, quantiles, na.rm=TRUE))
   })
-}
+  names(quantiles_matrix) <- celltypes
 
 
+  # (2) Create signature for each cell type
+  message("Finding signatures...")
 
+  signatures_out <- vector(mode = "list", length = length(celltypes))
+  for (type_id in 1:length(celltypes)) {
+    type <- celltypes[type_id]
+    names(signatures_out)[type_id] <- type
+    message(type)
 
-random_ref_list <- readRDS(file = "~/Documents/xCell2.0/xCell2.0_Dev/training/compendium_data/microarray_CV_ref_list.rds")
-label_list <- get_label_list(random_ref_list)
-
-
-## Creating signatures with ranks of genes (Florian) ----
-create_signatures_16_01 <- function(random_ref_list, label_list, num_quantiles = 20, plotting = TRUE) {
-
-  # Prob hold different cutoffs for quantiles
-  probs = seq(from = 0.0001,to = 0.1,length.out = num_quantiles)
-
-  csl <- lapply(names(random_ref_list), function(ref_name) {  # For each reference
-    ref_name <- "hpca" # Remove
-
-    ref <- random_ref_list[[ref_name]]  # SE object
-
-    ref_labels <- label_list[[ref_name]]  # Cell types
-
-    if(plotting) {par(mfrow = c(ceiling(length(ref_labels)/3), 3))}   # ?
-
-    celltype_signatures_list <- list()
-
-    for(celltype in ref_labels) {    # For each cell type
-      celltype <- "T cell" # Remove
-
-      ## ranks for genes in- and outside of samples for CTOI
-      in_df <- rankGenes(assays(ref[, ref$label.fine == celltype])$logcounts)
-      out_df <- rankGenes(assays(ref[, ref$label.fine != celltype])$logcounts)
-
-      ## get average rank:
-      in_df <- apply(in_df, 1, mean)
-      out_df <- apply(out_df, 1, mean)
-
-      ## get difference in ranks:
-      rank_diff <- in_df - out_df
-
-      ## get quantiles:
-      q_diff <- quantile(rank_diff, c(probs, 1-probs[length(probs):1]))
-
-      if(plotting) {hist(rank_diff, breaks = 50, main = paste0("Histogram of rank-difference: ", celltype)); abline(v = q_diff)}
-
-      for(p in probs) {    # For each quantile
-        p <- 0.000100000 # Remove
-
-        ## get genes for corresponding quantile (up and downregulated):
-        p_idx <- match(p,probs)
-
-        genes_in_down <- names(rank_diff[rank_diff < q_diff[p_idx]])
-
-        genes_in_up <- names(rank_diff[rank_diff > q_diff[length(q_diff)-p_idx+1]])
-
-        if(length(genes_in_up) >= 5 && length(genes_in_up) < 100 && length(genes_in_down) >= 5 && length(genes_in_down) < 100) {
-          gs_name <- paste(ref_name,celltype,p,sep = ",")
-          gs_list <- list(
-            "up"=GeneSet(genes_in_up[!is.na(genes_in_up)], setName = paste0(gs_name,",up")),
-            "down"=GeneSet(genes_in_down[!is.na(genes_in_down)], setName = paste0(gs_name, ",down"))
-          )
-          celltype_signatures_list[[gs_name]] <- gs_list
-        }
+    # Find dependent cell types
+    dep_cells <- NULL
+    if (!is.null(dep_list)) {
+      dep_cells <- dep_list[[type]]
+      if (length(dep_cells) > 0) {
+        quantiles_matrix_no_deps <- quantiles_matrix[!names(quantiles_matrix) %in% dep_cells]
+      }else{
+        quantiles_matrix_no_deps <- quantiles_matrix
       }
+    }else{
+      quantiles_matrix_no_deps <- quantiles_matrix
     }
 
 
-    celltype_signatures_list
-  })
-
-
-  if(plotting) {
-    sig_sizes <- lapply(names(random_ref_list), function(ref_name) {
-      ref <- random_ref_list[[ref_name]]
-      ref_labels <- label_list[[ref_name]]
-      sig_size_df <- matrix(ncol = length(ref_labels), nrow = length(probs)); colnames(sig_size_df) <- ref_labels; rownames(sig_size_df) <- probs
-      for(celltype in ref_labels) {
-        in_df <- rankGenes(assays(ref[, ref$label.fine == celltype])$logcounts)
-        out_df <- rankGenes(assays(ref[, ref$label.fine != celltype])$logcounts)
-        in_df <- apply(in_df, 1, mean); out_df <- apply(out_df, 1, mean)
-        rank_diff <- in_df - out_df
-        q_diff <- quantile(rank_diff, c(probs,1-probs[length(probs):1]))
-        for(p in probs) {
-          p_idx <- match(p,probs)
-          genes_in_up <- names(rank_diff[rank_diff > q_diff[length(q_diff)-p_idx+1]])
-          sig_size_df[p_idx,match(celltype, ref_labels)] <- length(genes_in_up)
-        }
+    # Find similar cell types
+    sim_cells <- NULL
+    if (!is.null(celltype_cor_mat)){
+      sim_cells <- names(which(celltype_cor_mat[type, ] >= cor_cells_cutoff))
+      sim_cells <- sim_cells[!sim_cells %in% c(type, dep_cells)]
+      if (length(sim_cells) == 0) {
+        sim_cells <- NULL
       }
-      sig_size_df
-    })
-    names(sig_sizes) <- names(random_ref_list)
-    for(ref_name in names(sig_sizes)) {
-      print(pheatmap::pheatmap(sig_sizes[[ref_name]], cluster_cols = F, cluster_rows = F, angle_col = 45, display_numbers = TRUE,
-                               main = paste("Number of genes for different values of p (reference:", ref_name,")")))
     }
+
+    diffQuantilesGenes_out <- diffQuantilesGenesOut(diff_vals, quantiles_matrix_no_deps,
+                                                    quantiles, min_genes, max_genes,
+                                                    per_cells, type, sim_cells)
+
+    if (length(diffQuantilesGenes_out) == 0) {
+      next
+    }
+
+    signatures_out[type_id][[1]] <- diffQuantilesGenes_out
   }
-  names(csl) <- names(random_ref_list)
-  return(csl)
+
+  if (length(signatures_out) == 0) {
+    warning("No signatures found for reference")
+  }
+
+  return(signatures_out)
 }
 
 
 
+# Testing -----------------------------
 
-create_signatures_out <- create_signatures_16_01(ref_list, lab_list, num_quantiles = 20, plotting = F)
+# hpca <- readRDS("~/Documents/xCell2.0/HPCA.RData")
+# ref_list <- list("HPCA" = hpca)
+
+# hpca.out <- createSignatures(ref_list, RNA_seq = FALSE, cor_cells_cutoff = 0.92, OBOfile = "~/Documents/xCell2.0/cl.obo")
+# saveRDS(hpca.out, file="~/Documents/xCell2.0/HPCA_signatures.RData")
+
+
+
+
+
+# library(singscore)
+# library(tidyverse)
+# library(pheatmap)
+#
+# HPCAsig <- readRDS("~/Documents/xCell2.0/HPCA_signatures.RData")
+# # HPCAsig <- hpca.out
+#
+# # Rank reference
+# hpca <- readRDS("~/Documents/xCell2.0/HPCA.RData")
+# hpca.ranked <- rankGenes(hpca)
+#
+# # Make heatmap for all signatures of CL:0000840
+# example_signature <- HPCAsig$HPCA$`CL:0000451`$`0`$`10%,90%`$`62`
+#
+# score.df <- simpleScore(hpca.ranked, upSet = example_signature)
+# df <- score.df %>%
+#   select(TotalScore) %>%
+#   mutate(celltype = hpca$label.ont) %>%
+#   drop_na() %>%
+#   group_by(celltype) %>%
+#   summarise(sig1 = median(TotalScore)) %>%
+#   arrange(-sig1)
+#
+# celltype.list <- HPCAsig$HPCA$`CL:0000840`
+#
+#
+# for (d in 1:length(celltype.list)) {
+#   diff <- names(celltype.list)[d]
+#   for (q in 1:length(celltype.list[[d]])) {
+#     quantile <- names(celltype.list[[d]])[q]
+#     for (n in 1:length(celltype.list[[d]][[q]])) {
+#       ncells <- names(celltype.list[[d]][[q]])[n]
+#
+#       sig <- celltype.list[[d]][[q]][[n]]
+#       sig_name <- paste0(diff, ";", quantile, ";", ncells, ";", length(sig))
+#       print(sig_name)
+#
+#
+#       score.df <- simpleScore(hpca.ranked, upSet = sig)
+#
+#       df <- score.df %>%
+#         select(TotalScore) %>%
+#         mutate(celltype = hpca$label.ont) %>%
+#         drop_na() %>%
+#         group_by(celltype) %>%
+#         summarise(medianScore = median(TotalScore)) %>%
+#         rename(!!sig_name := medianScore) %>%
+#         full_join(df)
+#     }
+#   }
+# }
+#
+# mat <- df %>%
+#   select(-sig1) %>%
+#   tibble::column_to_rownames(var = "celltype") %>%
+#   as.matrix()
+#
+#
+# pheatmap(t(mat))
+#
+#
+# good_signature <- HPCAsig$HPCA$`CL:0000840`$`4`$`33%,67%`$`60`
+# score.df <- simpleScore(hpca.ranked, upSet = good_signature)
+#
+# score.df %>%
+#   mutate(ont = hpca$label.ont, fine = hpca$label.fine, main = hpca$label.main) %>%
+#   select(-TotalDispersion) %>%
+#   ggplot(.,aes(x=reorder(ont, -TotalScore), y=TotalScore)) +
+#   geom_boxplot() +
+#   geom_point() +
+#   labs(y="Signature Score", x="") +
+#   theme(legend.position = "none",
+#         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+#
