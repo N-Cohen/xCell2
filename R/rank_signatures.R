@@ -10,7 +10,8 @@ rankSignatures <- function(scores_mat){
     pivot_longer(cols = -signature,
                  names_to = c("mixture_ctoi", "fraction", "control"),
                  names_sep = "_",
-                 values_to = "score")
+                 values_to = "score") %>%
+    filter(fraction == 1)
 
   # TODO: make this run faster
   scores_mat_tidy$signature_ct <- unlist(lapply(strsplit(scores_mat_tidy$signature, "[.]"), "[", 1))
@@ -19,36 +20,31 @@ rankSignatures <- function(scores_mat){
   scores_mat_tidy_ranked <- scores_mat_tidy %>%
     # Rank by CTOI
     filter(signature_ct == mixture_ctoi) %>%
-    group_by(signature_ct, fraction) %>%
-    mutate(rank = dense_rank(score)) %>%
-    group_by(signature_ct, signature) %>%
-    summarise(CTOI_rank = sum(rank)) %>%
+    group_by(signature_ct) %>%
+    mutate(CTOI_rank = percent_rank(score)*100) %>%
     arrange(-CTOI_rank) %>%
     full_join(
       # Rank by CT
       scores_mat_tidy %>%
         filter(signature_ct != mixture_ctoi) %>%
-        group_by(signature_ct, fraction, signature) %>%
-        summarise(median_score = median(score, na.rm = TRUE)) %>%
         drop_na() %>%
-        mutate(rank = dense_rank(desc(median_score))) %>%
         group_by(signature_ct, signature) %>%
-        summarise(CT_rank = sum(rank)) %>%
+        summarise(median_score = median(score)) %>%
+        mutate(CT_rank = percent_rank(desc(median_score))*100) %>%
         arrange(-CT_rank), by = c("signature_ct", "signature")
     ) %>%
     full_join(
       # Rank by diff
       scores_mat_tidy %>%
+        filter(fraction == 1) %>%
         mutate(is_ctoi = ifelse(mixture_ctoi == signature_ct, "yes", "no")) %>%
-        group_by(signature_ct, fraction, signature, is_ctoi) %>%
+        group_by(signature_ct, signature, is_ctoi) %>%
         top_n(1, wt=score) %>%
-        group_by(signature_ct, fraction, signature) %>%
+        group_by(signature_ct, signature) %>%
         mutate(top_diff = lag(score) - score) %>%
         drop_na() %>%
-        group_by(signature_ct, fraction) %>%
-        mutate(rank = dense_rank(top_diff)) %>%
-        group_by(signature_ct, signature) %>%
-        summarise(diff_rank = sum(rank)) %>%
+        group_by(signature_ct) %>%
+        mutate(diff_rank = percent_rank(top_diff)*100) %>%
         arrange(-diff_rank), by = c("signature_ct", "signature")
     ) %>%
     ungroup()
@@ -57,6 +53,35 @@ rankSignatures <- function(scores_mat){
 }
 
 
+
+# # Rank by CTOI
+# scores_mat_tidy %>%
+#   filter(signature_ct == mixture_ctoi & fraction == 1) %>%
+#   group_by(signature_ct) %>%
+#   mutate(CTOI_rank = percent_rank(score)*100) %>%
+#   arrange(-CTOI_rank)
+#
+# # Rank by CT
+# scores_mat_tidy %>%
+#   filter(signature_ct != mixture_ctoi & fraction == 1) %>%
+#   drop_na() %>%
+#   group_by(signature_ct, signature) %>%
+#   summarise(median_score = median(score)) %>%
+#   mutate(CT_rank = percent_rank(desc(median_score))*100) %>%
+#   arrange(-CT_rank)
+#
+# # Rank by diff
+# scores_mat_tidy %>%
+#   filter(fraction == 1) %>%
+#   mutate(is_ctoi = ifelse(mixture_ctoi == signature_ct, "yes", "no")) %>%
+#   group_by(signature_ct, signature, is_ctoi) %>%
+#   top_n(1, wt=score) %>%
+#   group_by(signature_ct, signature) %>%
+#   mutate(top_diff = lag(score) - score) %>%
+#   drop_na() %>%
+#   group_by(signature_ct) %>%
+#   mutate(diff_rank = percent_rank(top_diff)*100) %>%
+#   arrange(-diff_rank)
 
 
 # Testing -----------------------------------
