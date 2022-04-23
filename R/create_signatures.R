@@ -7,6 +7,7 @@ genesOut <- function(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells)
   if (!is.null(sim_cells)) {
     if (length(sim_cells) == 1) {
       sim_genes_passed <- diff_genes.mat[sim_cells,]
+      sim_genes_out <- names(which(sim_genes_passed))
     }else{
       sim_cells_diff_genes.mat <- diff_genes.mat[rownames(diff_genes.mat) %in% sim_cells,]
       for (i in length(sim_cells):1) {
@@ -33,7 +34,7 @@ genesOut <- function(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells)
       next
     }
 
-    # If genes_passed reach max_genes - go to the next n_cells
+    # If genes_passed >= max_genes - take the first max_genes genes
     if (length(genes_passed) >= max_genes) {
       genes_out[n][[1]] <- genes_passed[1:max_genes]
       next
@@ -42,7 +43,7 @@ genesOut <- function(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells)
     # Add genes of similar cell types
     all_genes_passed <- unique(c(genes_passed, sim_genes_out))
 
-    # If all_genes_passed reach max_genes - go to the next n_cells
+    # If all_genes_passed >= max_genes - take the first max_genes genes
     if (length(all_genes_passed) >= max_genes) {
       genes_out[n][[1]] <- all_genes_passed[1:max_genes]
       next
@@ -70,17 +71,17 @@ genesOut <- function(diff_genes.mat, min_genes, max_genes, per_cells, sim_cells)
 }
 
 # This function return signature genes per # of celltypes per quantiles
-quantilesGenesOut <- function(quantiles_matrix, quantiles, type, diff, min_genes, max_genes, per_cells, sim_cells){
+quantilesGenesOut <- function(quantiles_matrix, probs, type, diff, min_genes, max_genes, per_cells, sim_cells){
 
-  quantiles_genes_out <- vector(mode = "list", length = as.integer(length(quantiles)/2 + 0.5))
-  for (j in 1:as.integer(length(quantiles)/2 + 0.5)) {
-    names(quantiles_genes_out)[j] <- paste0(round(quantiles[j], 2)*100, "%,",
-                                            round(quantiles[length(quantiles)-(j-1)], 2)*100, "%")
+  quantiles_genes_out <- vector(mode = "list", length = as.integer(length(probs)/2 + 0.5))
+  for (j in 1:as.integer(length(probs)/2 + 0.5)) {
+    names(quantiles_genes_out)[j] <- paste0(round(probs[j], 2)*100, "%,",
+                                            round(probs[length(probs)-(j-1)], 2)*100, "%")
 
     # Get diff_genes for this diff and quantile values
     type_id <- which(names(quantiles_matrix) == type)
     diff_genes <- lapply(quantiles_matrix[-type_id],
-                         function(x) quantiles_matrix[[type_id]][j,] > x[length(quantiles)-(j-1),]+diff)
+                         function(x) quantiles_matrix[[type_id]][j,] > x[length(probs)-(j-1),]+diff)
     diff_genes.mat <- matrix(unlist(diff_genes), nrow = length(diff_genes), byrow = TRUE)
     colnames(diff_genes.mat) <- colnames(quantiles_matrix[[type_id]])
     rownames(diff_genes.mat) <- names(quantiles_matrix)[-type_id]
@@ -102,11 +103,11 @@ quantilesGenesOut <- function(quantiles_matrix, quantiles, type, diff, min_genes
 }
 
 
-diffQuantilesGenesOut <- function(diff_vals, quantiles_matrix, quantiles, min_genes, max_genes, per_cells, type, sim_cells){
+diffQuantilesGenesOut <- function(diff_vals, quantiles_matrix, probs, min_genes, max_genes, per_cells, type, sim_cells){
 
   diff_quantiles_genes_out <- vector(mode = "list", length = length(diff_vals))
   for (i in 1:length(diff_vals)) {
-    quantilesGenes_out <- quantilesGenesOut(quantiles_matrix, quantiles, type, diff_vals[i], min_genes, max_genes,
+    quantilesGenes_out <- quantilesGenesOut(quantiles_matrix, probs, type, diff_vals[i], min_genes, max_genes,
                                             per_cells, sim_cells)
 
     if (length(quantilesGenes_out) == 0) {
@@ -126,25 +127,18 @@ diffQuantilesGenesOut <- function(diff_vals, quantiles_matrix, quantiles, min_ge
 }
 
 
-# # Load this for debugging (Remove):
-# ref <- readRDS("~/Documents/xCell2.0/HPCA.RData")
-# counts <- ref@assays@data$logcount
-# samples <- ref$label.ont
-# celltypes <- unique(samples[!is.na(samples)])
-#  quantiles = c(.1, .25, .33333333, .5, .6666666, .75, .9)
-# diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
-# type_id = 1; per_cells = .95; min_genes = 7;  max_genes = 200; cor_cells_cutoff = .92
-# type = "CL:0000840"
-#
-# celltype_cor_mat <- readRDS("~/Documents/xCell2.0/xCell2/data_for_dev/celltype_cor_mat.RData")
-# dep_list <- readRDS("~/Documents/xCell2.0/xCell2/data_for_dev/dep_list.RData")
-# quantiles_matrix <- readRDS("~/Documents/xCell2.0/quantiles_matrix.RData")
+# Load this for debugging (Remove):
+diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
+probs = c(.1, .25, .33333333, .5, .6666666, .75, .9)
+min_genes = 7; max_genes = 200; per_cells = .95; cor_cells_cutoff = .92
+type_id = 30; type = "CL:0000057"
+quantiles_matrix <- readRDS("quantiles_matrix.RData")
 
 
 
 createSignatures <- function(counts, samples, celltypes, dep_list = NULL, celltype_cor_mat = NULL,
                              diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
-                             quantiles = c(.1, .25, .33333333, .5, .6666666, .75, .9),
+                             probs = c(.1, .25, .33333333, .5, .6666666, .75, .9),
                              min_genes = 7, max_genes = 200, per_cells = .95, cor_cells_cutoff = .92){
 
 
@@ -158,7 +152,7 @@ createSignatures <- function(counts, samples, celltypes, dep_list = NULL, cellty
     }else{
       type.df <- counts[,samples==type & !is.na(samples)]
     }
-    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, quantiles, na.rm=TRUE))
+    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, probs, na.rm=TRUE))
   })
   names(quantiles_matrix) <- celltypes
 
@@ -197,7 +191,7 @@ createSignatures <- function(counts, samples, celltypes, dep_list = NULL, cellty
     }
 
     diffQuantilesGenes_out <- diffQuantilesGenesOut(diff_vals, quantiles_matrix_no_deps,
-                                                    quantiles, min_genes, max_genes,
+                                                    probs, min_genes, max_genes,
                                                     per_cells, type, sim_cells)
 
     if (length(diffQuantilesGenes_out) == 0) {
@@ -210,6 +204,7 @@ createSignatures <- function(counts, samples, celltypes, dep_list = NULL, cellty
   if (length(signatures_out) == 0) {
     warning("No signatures found for reference")
   }
+
 
   return(signatures_out)
 }
