@@ -1,152 +1,231 @@
 
 # This function return a correlation matrix given the counts and cell types
-getCellTypeCorrelation <- function(counts, samples, celltypes){
+getCellTypeCorrelation <- function(counts, labels){
+
+  celltypes <- unique(labels[,2])
+  samples <- labels[,2]
 
   cor_mat <- matrix(1, ncol = length(celltypes), nrow = length(celltypes), dimnames = list(celltypes, celltypes))
-  n <- 2
-  for (i in 1:nrow(cor_mat)) {
-    for (j in n:ncol(cor_mat)) {
-      celltype_i <- rownames(cor_mat)[i]
-      celltype_j <- colnames(cor_mat)[j]
+  lower_tri_coord <- which(lower.tri(cor_mat), arr.ind = TRUE)
 
-      if (sum(samples == celltype_i) == 1) {
-        median_expression_i <- as.numeric(counts[,samples == celltype_i])
-      }else{
-        median_expression_i <- rowMedians(counts[,samples == celltype_i], na.rm = TRUE)
-      }
+  for (i in 1:nrow(lower_tri_coord)) {
+    celltype_i <- rownames(cor_mat)[lower_tri_coord[i, 1]]
+    celltype_j <- colnames(cor_mat)[lower_tri_coord[i, 2]]
 
-      if (sum(samples == celltype_j) == 1) {
-        median_expression_j <- as.numeric(counts[,samples == celltype_j])
-      }else{
-        median_expression_j <- rowMedians(counts[,samples == celltype_j], na.rm = TRUE)
-      }
-
-      cor_out <- cor(median_expression_i, median_expression_j)
-      cor_mat[i, j] <- cor_out
-      cor_mat[j, i] <- cor_out
+    if (sum(samples == celltype_i) == 1) {
+      median_expression_i <- as.numeric(counts[,samples == celltype_i])
+    }else{
+      median_expression_i <- rowMedians(counts[,samples == celltype_i], na.rm = TRUE)
     }
-    n <- n + 1
-    if (n > ncol(cor_mat)) {
-      break
+
+    if (sum(samples == celltype_j) == 1) {
+      median_expression_j <- as.numeric(counts[,samples == celltype_j])
+    }else{
+      median_expression_j <- rowMedians(counts[,samples == celltype_j], na.rm = TRUE)
     }
+
+    cor_mat[lower_tri_coord[i, 1], lower_tri_coord[i, 2]] <- cor(median_expression_i, median_expression_j)
+    cor_mat[lower_tri_coord[i, 2], lower_tri_coord[i, 1]] <- cor(median_expression_i, median_expression_j)
   }
 
   return(cor_mat)
 }
 
 
-# This function return a vector of cell type dependencies give a list of cell types and one cell type on interest (type)
-getDependencies <- function(OBOfile, celltypes){
+# This function return a vector of cell type dependencies
+getDependencies <- function(OBOfile, labels){
 
+  celltypes <- unique(labels[,2])
+  onts <- unique(labels[,1])
   cl <- suppressWarnings(ontologyIndex::get_ontology(OBOfile))
+
   celltype2dep <- vector(mode = "list", length = length(celltypes))
   names(celltype2dep) <- celltypes
 
   for (type in celltypes) {
-    descendants <- ontologyIndex::get_descendants(cl, roots = type, exclude_roots = T)
-    ancestors <- ontologyIndex::get_ancestors(cl, terms = type)
-    ancestors <- ancestors[ancestors != type]
-    dep_cells <- celltypes[celltypes %in% c(descendants, ancestors)]
+    # Get cell type ontology
+    ont <- unique(labels[labels[,2] == type, 1])
+    # Find descendants
+    descendants <- ontologyIndex::get_descendants(cl, roots = ont, exclude_roots = T)
+    # Find ancestors
+    ancestors <- ontologyIndex::get_ancestors(cl, terms = ont)
+    ancestors <- ancestors[ancestors != ont]
+    # Use only ontologies from the reference
+    dep_cells <- c(descendants, ancestors)
+    dep_cells <- dep_cells[dep_cells %in% labels[,1]]
+    # Go back to cell type labels
+    dep_cells <- unique(labels[labels[,1] %in% dep_cells, 2])
+
     celltype2dep[[type]] <- dep_cells
   }
 
   return(celltype2dep)
 }
 
-#  TODO: add options for synthetic control
-createInSilicoMixture <- function(counts, celltypes, celltype_cor_mat,
-                                  synthetic_control = FALSE, fractions = seq(.01,.25, .01)){
 
+createInSilicoMixture <- function(counts, labels, cor_mat, mixture_fractions = c(.001, seq(.01, .25, .01), 1), add_noise){
+
+  celltypes <- unique(labels[,2])
 
   fractions_mat_list <- lapply(celltypes, function(type) {
 
     # Get control vector
-    control <- names(which.min(celltype_cor_mat[type,]))
-    control_samples <- colnames(ref)[which(ref$label.ont == control)]
-    if (length(control_samples) == 1) {
-      control_vec <- as.vector(counts[,colnames(counts) == control_samples])
+    control <- names(which.min(cor_mat[type,]))
+    control_samples <- labels[,2] == control
+    if (sum(control_samples) == 1) {
+      control_vec <- as.vector(counts[,control_samples])
     }else{
-      control_vec <- as.vector(apply(counts[,colnames(counts) %in% control_samples], 1, median))
+      control_vec <- as.vector(apply(counts[,control_samples], 1, median))
     }
 
     # Get CTOI vector
-    type_samples <- colnames(ref)[which(ref$label.ont == type)]
-    if (length(type_samples) == 1) {
-      type_vec <- as.vector(counts[,colnames(counts) %in% type_samples])
+    type_samples <- labels[,2] == type
+    if (sum(type_samples) == 1) {
+      type_vec <- as.vector(counts[,type_samples])
     }else{
-      type_vec <- as.vector(apply(counts[,colnames(counts) %in% type_samples], 1, median))
+      type_vec <- as.vector(apply(counts[,type_samples], 1, median))
     }
 
     # Calculate fractions
-    fractions <- c(1, fractions) # For pure CTOI scoring
-    fractions_mat <- sapply(fractions, function(f) {
-      type_vec * f + control_vec*(1-f)
-    })
-    colnames(fractions_mat) <- paste(fractions, control, sep = "_")
+    if (add_noise) {
+      fractions_mat <- sapply(mixture_fractions, function(f) {
+      (type_vec*f + control_vec*(1-f))*runif(1, 0.95, 1.05) # Multiply by a random number between 0.95-1.05 for noise
+      })
+    }else{
+      fractions_mat <- sapply(mixture_fractions, function(f) {
+      type_vec*f + control_vec*(1-f)
+      })
+    }
+    colnames(fractions_mat) <- paste(mixture_fractions, control, sep = "_")
     fractions_mat
   })
-
   names(fractions_mat_list) <- celltypes
+
+  # Transform list of matrices to one matrix
   ref_insilico_mat <- do.call(cbind.data.frame, fractions_mat_list)
   colnames(ref_insilico_mat) <- sub("\\.", "_", colnames(ref_insilico_mat))
-  rownames(ref_insilico_mat) <- rownames(ref)
-  return(ref_insilico_mat)
+  rownames(ref_insilico_mat) <- rownames(counts)
+  return(as.matrix(ref_insilico_mat))
+}
+
+# Generate a list with quantiles matrices for each cell type
+makeQuantiles <- function(counts, labels, probs){
+
+  celltypes <- unique(labels[,2])
+  samples <- labels[,2]
+
+  quantiles_matrix <- lapply(celltypes, function(type){
+    type_samples <- labels[,2] == type
+    # If there is one sample for this cell type - duplicate the sample to make a data frame
+    if (sum(type_samples) == 1) {
+      type.df <- cbind(counts[,type_samples], counts[,type_samples])
+    }else{
+      type.df <- counts[,type_samples]
+    }
+    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE))
+  })
+  names(quantiles_matrix) <- celltypes
+
+  return(quantiles_matrix)
 }
 
 
+# Make score_mat tidy
+# TODO: This function take too long
+makeScoreMatTidy <- function(scores_mat){
+  scores_mat_tidy <- scores_mat %>%
+  as_tibble(., rownames = NA) %>%
+  rownames_to_column(var = "signature") %>%
+  pivot_longer(cols = -signature,
+               names_to = c("mixture_ct", "mixture_fraction", "mixture_control"),
+               names_sep = "_",
+               values_to = "score") %>%
+  separate(signature, into = "signature_ct", sep = "_", remove = FALSE, extra = "drop") # Speed bottleneck!!
+}
 
+
+# Plot signatures heatmap for a cell type
+plotHeatMap <- function(type, scores_mat_tidy, mixture_frac, filter_signatures = NULL, cor_mat){
+
+  sig_score.df <- scores_mat_tidy %>%
+    filter(signature_ct == type & mixture_fraction == mixture_frac) %>%
+    select(signature, mixture_ct, score) %>%
+    pivot_wider(names_from = mixture_ct, values_from = score) %>%
+    column_to_rownames(var = "signature")
+
+  sigs_to_use <- rownames(sig_score.df)
+  celltype_order <- names(sort(cor_mat[type,], decreasing = TRUE))
+  if (!is.null(filter_signatures)) {
+    sigs_to_use <- sigs_to_use[sigs_to_use %in% pull(filter_signatures, signature)]
+  }
+  sig_score.df <- sig_score.df[sigs_to_use, celltype_order]
+  sig_score.df <- sig_score.df[ ,colSums(is.na(sig_score.df)) == 0]
+
+  pheatmap::pheatmap(sig_score.df, cluster_rows=F, cluster_cols=F, scale = "row", col= RColorBrewer::brewer.pal(11, "RdBu"))
+
+}
 
 
 # Helper function (for development) ------
 
-
-# Plot signatures heatmap for a cell type
-plotHeatMap <- function(ctoi, scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(1, 1, 1, 1), take_top_per = NULL, label = "ont"){
-
-  chnageLabel <- function(ref, ont, label = "fine"){
-    if (label == "main") {
-      out <- unique(ref$label.main[ref$label.ont == ont])
-      return(out[!is.na(out)][1])
-    }else if(label == "fine"){
-      out <- unique(ref$label.fine[ref$label.ont == ont])
-      return(out[!is.na(out)][1])
-    }
+# This function convents signatures_list from a nested lists to a list of GeneSet objects
+makeGeneSetObjects <- function(signatures_list){
+  all_signatures <- lapply(rapply(signatures_list, enquote, how="unlist"), eval)
+  for (i in 1:length(all_signatures)) {
+    all_signatures[[i]] <- GSEABase::GeneSet(all_signatures[i][[1]], setName = names(all_signatures[i]))
   }
-
-  # Take only scores with 100% CTOI mixture
-  scores_mat_sub <- scores_mat[startsWith(rownames(scores_mat), ctoi), grep("*_1_", colnames(scores_mat))]
-  colnames(scores_mat_sub) <- unlist(lapply(strsplit(colnames(scores_mat_sub), "_"), "[", 1))
-
-  # Remove dep celltypes
-  types2use <- names(sort(celltype_cor_mat[ctoi,], decreasing = T))
-  types2use <- types2use[!types2use %in% dep_list[[ctoi]]]
-
-  # Sort signatures by rank
-  sigs_sorted <- signatures_ranked %>%
-    filter(signature_ct == ctoi) %>%
-    mutate(CT_rank = coalesce(CT_rank, CTOI_rank), diff_rank = coalesce(diff_rank, CTOI_rank)) %>%
-    mutate(final_rank = ranks_weights[1]*CTOI_rank + ranks_weights[2]*CT_rank + ranks_weights[3]*diff_rank + ranks_weights[4]*grubbs_rank) %>%
-    group_by(signature_ct) %>%
-    arrange(-final_rank, .by_group = TRUE)
-
-  # Filter signatures
-  if (!is.null(take_top_per)) {
-    sigs_sorted <- sigs_sorted %>%
-      filter(final_rank > quantile(final_rank, 1-take_top_per))
-  }
-
-  scores_mat_sub <- scores_mat_sub[sigs_sorted$signature, types2use]
-
-  # Change celltype labels
-  if (label == "main") {
-    colnames(scores_mat_sub) <- unlist(lapply(colnames(scores_mat_sub), function(x) chnageLabel(ref, x, label = "main")))
-  }else if(label == "fine"){
-    colnames(scores_mat_sub) <- unlist(lapply(colnames(scores_mat_sub), function(x) chnageLabel(ref, x)))
-  }
-
-  hm <- pheatmap::pheatmap(scores_mat_sub, cluster_rows=F, cluster_cols=F, scale = "row", col=brewer.pal(11, "RdBu")) # Change the yellow color
-  return(hm)
+  return(all_signatures)
 }
+
+
+
+# # Plot signatures heatmap for a cell type
+# plotHeatMap <- function(ctoi, scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(1, 1, 1, 1), take_top_per = NULL, label = "ont"){
+#
+#   chnageLabel <- function(ref, ont, label = "fine"){
+#     if (label == "main") {
+#       out <- unique(ref$label.main[ref$label.ont == ont])
+#       return(out[!is.na(out)][1])
+#     }else if(label == "fine"){
+#       out <- unique(ref$label.fine[ref$label.ont == ont])
+#       return(out[!is.na(out)][1])
+#     }
+#   }
+#
+#   # Take only scores with 100% CTOI mixture
+#   scores_mat_sub <- scores_mat[startsWith(rownames(scores_mat), ctoi), grep("*_1_", colnames(scores_mat))]
+#   colnames(scores_mat_sub) <- unlist(lapply(strsplit(colnames(scores_mat_sub), "_"), "[", 1))
+#
+#   # Remove dep celltypes
+#   types2use <- names(sort(celltype_cor_mat[ctoi,], decreasing = T))
+#   types2use <- types2use[!types2use %in% dep_list[[ctoi]]]
+#
+#   # Sort signatures by rank
+#   sigs_sorted <- signatures_ranked %>%
+#     filter(signature_ct == ctoi) %>%
+#     mutate(CT_rank = coalesce(CT_rank, CTOI_rank), diff_rank = coalesce(diff_rank, CTOI_rank)) %>%
+#     mutate(final_rank = ranks_weights[1]*CTOI_rank + ranks_weights[2]*CT_rank + ranks_weights[3]*diff_rank + ranks_weights[4]*grubbs_rank) %>%
+#     group_by(signature_ct) %>%
+#     arrange(-final_rank, .by_group = TRUE)
+#
+#   # Filter signatures
+#   if (!is.null(take_top_per)) {
+#     sigs_sorted <- sigs_sorted %>%
+#       filter(final_rank > quantile(final_rank, 1-take_top_per))
+#   }
+#
+#   scores_mat_sub <- scores_mat_sub[sigs_sorted$signature, types2use]
+#
+#   # Change celltype labels
+#   if (label == "main") {
+#     colnames(scores_mat_sub) <- unlist(lapply(colnames(scores_mat_sub), function(x) chnageLabel(ref, x, label = "main")))
+#   }else if(label == "fine"){
+#     colnames(scores_mat_sub) <- unlist(lapply(colnames(scores_mat_sub), function(x) chnageLabel(ref, x)))
+#   }
+#
+#   hm <- pheatmap::pheatmap(scores_mat_sub, cluster_rows=F, cluster_cols=F, scale = "row", col=brewer.pal(11, "RdBu")) # Change the yellow color
+#   return(hm)
+# }
 
 
 # Ge DE genes with limma
@@ -176,4 +255,33 @@ getDEG <- function(ref, ctoi, ct2, plot = TRUE){
 
 return(toptable)
 }
+
+
+# Change label
+
+changeLabel <- function(ref, labels, to = "fine"){
+  labels.df <- drop_na(as_tibble(colData(ref)))
+
+  for (i in 1:ncol(labels.df)) {
+    if(all(labels %in% labels.df[,i])){
+      break
+    }
+  }
+
+  if (to == "main") {
+    out <- unname(unlist(lapply(labels, function(x) {unique(labels.df[labels.df[,i] == x, 1])})))
+  }else if(to == "fine"){
+    out <- unname(unlist(lapply(labels, function(x) {unique(labels.df[labels.df[,i] == x, 2])})))
+    }else if(to == "ont"){
+      out <- unname(unlist(lapply(labels, function(x) {unique(labels.df[labels.df[,i] == x, 3])})))
+    }
+
+  return(out)
+
+}
+
+
+
+
+
 
