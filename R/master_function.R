@@ -11,7 +11,7 @@ OBOfile = "~/Documents/xCell2.0/cl.obo"
 use_genes = NULL
 RNA_seq = TRUE
 labels = "ont"
-mixture_fractions = seq(.01,.25, .01)
+mixture_fractions = c(seq(0.001, 0.009, 0.001), seq(.01,.25, .01), 1)
 
 
 # Master function steps:
@@ -68,7 +68,7 @@ dep_list <- readRDS("dep_list.RData")
 
 
 # (7) Get in silico mixtures
-# inSilico_mat <- createInSilicoMixture(counts, celltypes, celltype_cor_mat, fractions = ISFractions)
+# inSilico_mat <- createInSilicoMixture(counts, celltypes, celltype_cor_mat, fractions = mixture_fractions)
 # saveRDS(inSilico_mat, "inSilico_mat.RData")
 inSilico_mat <- readRDS("inSilico_mat.RData")
 
@@ -82,7 +82,10 @@ signatures_list <- readRDS("signatures_list.RData")
 
 source("../../R/score_signatures.R")
 # (9) Score all signatures vs. the in silico matrix
-# scores_mat <- scoreSignatures(signatures_list, inSilico_mat, dep_list)
+# all_signatures <- makeGeneSetObjects(signatures_list)
+# saveRDS(all_signatures, "all_signatures.RData")
+all_signatures <- readRDS("all_signatures.RData")
+# scores_mat <- scoreSignatures(all_signatures, celltypes, inSilico_mat, dep_list)
 # saveRDS(scores_mat, "scores_mat.RData")
 scores_mat <- readRDS("scores_mat.RData")
 
@@ -97,8 +100,8 @@ signatures_ranked <- readRDS("signatures_ranked.RData")
 # # Example heatmaps (Remove)
 # plotHeatMap("CL:0000136", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 1), label = "fine")
 # plotHeatMap("CL:0000863", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 1), label = "fine")
-# plotHeatMap("CL:0000863", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 1), take_top_per = .1, label = "fine")
-# plotHeatMap("CL:0000624", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(.5, .4, .1), label = "fine")
+# plotHeatMap("CL:0000863", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 0), label = "fine")
+# plotHeatMap("CL:0000624", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 0), label = "fine")
 # plotHeatMap("CL:0000624", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(.5, .4, .1), take_top_per = .1, label = "fine")
 # plotHeatMap("CL:0000786", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(.2, .4, .5), label = "fine")
 # plotHeatMap("CL:0000786", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(.5, .4, .1), take_top_per = .1, label = "fine")
@@ -106,7 +109,7 @@ signatures_ranked <- readRDS("signatures_ranked.RData")
 # signatures_ranked %>%
 #   filter(signature_ct == "CL:0000057") %>%
 #   arrange(-grubbs_rank)
-# plotHeatMap("CL:0000057", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 1), label = "fine")
+# plotHeatMap("CL:0000057", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(0, 0, 0, 0), label = "fine")
 # plotHeatMap("CL:0000057", scores_mat, dep_list, ref, signatures_ranked, ranks_weights = c(.5, .4, .1), take_top_per = .1, label = "fine")
 
 
