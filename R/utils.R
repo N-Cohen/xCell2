@@ -1,31 +1,69 @@
+library(tidyverse)
+# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data
+
+sc2pseudoBulk <- function(ref, labels, is_10x){
+  if (class(ref) == "Seurat") {
+    celltypes <- unique(labels$label)
+    mat <- Seurat::GetAssayData(ref, assay = 'RNA', slot = 'data')
+    for (ct in celltypes) {
+      ct_mat <- mat[, labels$label == ct]
+      if (!is_10x) {
+        ct_mat[rowMeans(log2(ct_mat)) < 0.75,] <- 0 # Only for full length scRNA-Seq methods
+      }
+      if (ncol(ct_mat) >= 3) { # Minimum 3 cells per cluster to be a reference
+        for (i in 1:5) { # Make five pseudo-bulk samples
+          tmp_bulk <- rowSums(ct_mat[,sample(ncol(ct_mat), round(ncol(ct_mat)*0.5))]) # Use 50% of cells in the cluster each time
+          if (i == 1L) {
+            ct_mat_bulk <- tmp_bulk
+          }else{
+            ct_mat_bulk <- cbind(ct_mat_bulk, tmp_bulk)
+          }
+        }
+        colnames(ct_mat_bulk) <- paste0(ct, ".", 1:5)
+        if(ct==celltypes[1]){
+          mat_bulk <- ct_mat_bulk
+          lables_new <- data.frame("ont" = rep(unique(labels[labels$label == ct,1]), 5), "label" = rep(ct, 5), row.names = colnames(ct_mat_bulk))
+        }else{
+          mat_bulk <- cbind(mat_bulk, ct_mat_bulk)
+          lables_new <- rbind(lables_new, data.frame("ont" = rep(unique(labels[labels$label == ct,1]), 5), "label" = rep(ct, 5), row.names = colnames(ct_mat_bulk)))
+        }
+      }else{
+        print(paste0("WARNING: minimum 3 cells for ", ct, " required"))
+      }
+    }
+    mat_bulk <- mat_bulk[rowSums(mat_bulk) > 0,]
+  }else{
+    # TODO: Make pseudo bulk for non-Seurat object
+  }
+  return(list("pseudoBulk" = as.matrix(mat_bulk), "newLabels" = lables_new))
+}
+
 
 # This function return a correlation matrix given the counts and cell types
-getCellTypeCorrelation <- function(counts, labels){
+getCellTypeCorrelation <- function(ref, labels){
 
   celltypes <- unique(labels[,2])
   samples <- labels[,2]
 
+  # Calculate median expression for each cell type
+  median_expression <- lapply(celltypes, function(x){
+    if (sum(samples == x) == 1) {
+      as.numeric(ref[,samples == x])
+    }else{
+      apply(ref[,samples == x], 1, function(x) median(x, na.rm = TRUE))
+    }
+  })
+  names(median_expression) <- celltypes
+
+  # Make correlation matrix
   cor_mat <- matrix(1, ncol = length(celltypes), nrow = length(celltypes), dimnames = list(celltypes, celltypes))
   lower_tri_coord <- which(lower.tri(cor_mat), arr.ind = TRUE)
 
   for (i in 1:nrow(lower_tri_coord)) {
     celltype_i <- rownames(cor_mat)[lower_tri_coord[i, 1]]
     celltype_j <- colnames(cor_mat)[lower_tri_coord[i, 2]]
-
-    if (sum(samples == celltype_i) == 1) {
-      median_expression_i <- as.numeric(counts[,samples == celltype_i])
-    }else{
-      median_expression_i <- rowMedians(counts[,samples == celltype_i], na.rm = TRUE)
-    }
-
-    if (sum(samples == celltype_j) == 1) {
-      median_expression_j <- as.numeric(counts[,samples == celltype_j])
-    }else{
-      median_expression_j <- rowMedians(counts[,samples == celltype_j], na.rm = TRUE)
-    }
-
-    cor_mat[lower_tri_coord[i, 1], lower_tri_coord[i, 2]] <- cor(median_expression_i, median_expression_j)
-    cor_mat[lower_tri_coord[i, 2], lower_tri_coord[i, 1]] <- cor(median_expression_i, median_expression_j)
+    cor_mat[lower_tri_coord[i, 1], lower_tri_coord[i, 2]] <- cor(median_expression[celltype_i][[1]], median_expression[celltype_j][[1]])
+    cor_mat[lower_tri_coord[i, 2], lower_tri_coord[i, 1]] <- cor(median_expression[celltype_i][[1]], median_expression[celltype_j][[1]])
   }
 
   return(cor_mat)
@@ -36,15 +74,14 @@ getCellTypeCorrelation <- function(counts, labels){
 getDependencies <- function(OBOfile, labels){
 
   celltypes <- unique(labels[,2])
-  onts <- unique(labels[,1])
   cl <- suppressWarnings(ontologyIndex::get_ontology(OBOfile))
 
-  celltype2dep <- vector(mode = "list", length = length(celltypes))
-  names(celltype2dep) <- celltypes
+  dep_list <- vector(mode = "list", length = length(celltypes))
+  names(dep_list) <- celltypes
 
   for (type in celltypes) {
     # Get cell type ontology
-    ont <- unique(labels[labels[,2] == type, 1])
+    ont <- as.character(unique(labels[labels[,2] == type, 1]))
     # Find descendants
     descendants <- ontologyIndex::get_descendants(cl, roots = ont, exclude_roots = T)
     # Find ancestors
@@ -56,14 +93,14 @@ getDependencies <- function(OBOfile, labels){
     # Go back to cell type labels
     dep_cells <- unique(labels[labels[,1] %in% dep_cells, 2])
 
-    celltype2dep[[type]] <- dep_cells
+    dep_list[[type]] <- dep_cells
   }
 
-  return(celltype2dep)
+  return(dep_list)
 }
 
 
-createInSilicoMixture <- function(counts, labels, cor_mat, mixture_fractions = c(.001, seq(.01, .25, .01), 1), add_noise){
+createInSilicoMixture <- function(ref, labels, cor_mat, mixture_fractions, add_noise){
 
   celltypes <- unique(labels[,2])
 
@@ -73,17 +110,17 @@ createInSilicoMixture <- function(counts, labels, cor_mat, mixture_fractions = c
     control <- names(which.min(cor_mat[type,]))
     control_samples <- labels[,2] == control
     if (sum(control_samples) == 1) {
-      control_vec <- as.vector(counts[,control_samples])
+      control_vec <- as.vector(ref[,control_samples])
     }else{
-      control_vec <- as.vector(apply(counts[,control_samples], 1, median))
+      control_vec <- as.vector(apply(ref[,control_samples], 1, median))
     }
 
     # Get CTOI vector
     type_samples <- labels[,2] == type
     if (sum(type_samples) == 1) {
-      type_vec <- as.vector(counts[,type_samples])
+      type_vec <- as.vector(ref[,type_samples])
     }else{
-      type_vec <- as.vector(apply(counts[,type_samples], 1, median))
+      type_vec <- as.vector(apply(ref[,type_samples], 1, median))
     }
 
     # Calculate fractions
@@ -102,14 +139,25 @@ createInSilicoMixture <- function(counts, labels, cor_mat, mixture_fractions = c
   names(fractions_mat_list) <- celltypes
 
   # Transform list of matrices to one matrix
-  ref_insilico_mat <- do.call(cbind.data.frame, fractions_mat_list)
+  ref_insilico_mat <- as.matrix(do.call(cbind.data.frame, fractions_mat_list))
   colnames(ref_insilico_mat) <- sub("\\.", "_", colnames(ref_insilico_mat))
-  rownames(ref_insilico_mat) <- rownames(counts)
-  return(as.matrix(ref_insilico_mat))
+  rownames(ref_insilico_mat) <- rownames(ref)
+
+  # Split matrices into pure and fractions cell types
+  pure_mat <- ref_insilico_mat[,grepl("_1_", colnames(ref_insilico_mat))]
+  frac_mat <- ref_insilico_mat[,!grepl("_1_", colnames(ref_insilico_mat))]
+
+  if (length(celltypes) != ncol(pure_mat)) {
+    print("WARNING: Please remove _1_ from cell types names")
+  }
+
+  insilico_mat <- list("pureMat" = pure_mat, "fracMat" = frac_mat)
+
+  return(insilico_mat)
 }
 
 # Generate a list with quantiles matrices for each cell type
-makeQuantiles <- function(counts, labels, probs){
+makeQuantiles <- function(ref, labels, probs){
 
   celltypes <- unique(labels[,2])
   samples <- labels[,2]
@@ -118,9 +166,9 @@ makeQuantiles <- function(counts, labels, probs){
     type_samples <- labels[,2] == type
     # If there is one sample for this cell type - duplicate the sample to make a data frame
     if (sum(type_samples) == 1) {
-      type.df <- cbind(counts[,type_samples], counts[,type_samples])
+      type.df <- cbind(ref[,type_samples], ref[,type_samples])
     }else{
-      type.df <- counts[,type_samples]
+      type.df <- ref[,type_samples]
     }
     quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE))
   })
@@ -145,18 +193,18 @@ makeScoreMatTidy <- function(scores_mat){
 
 
 # Plot signatures heatmap for a cell type
-plotHeatMap <- function(type, scores_mat_tidy, mixture_frac, filter_signatures = NULL, cor_mat){
+plotHeatMap <- function(type, scores_mat_tidy, signatures_collection_filtered = NULL, cor_mat){
 
   sig_score.df <- scores_mat_tidy %>%
-    filter(signature_ct == type & mixture_fraction == mixture_frac) %>%
-    select(signature, mixture_ct, score) %>%
+    filter(signature_ct == type) %>%
+    dplyr::select(signature, mixture_ct, score) %>%
     pivot_wider(names_from = mixture_ct, values_from = score) %>%
     column_to_rownames(var = "signature")
 
   sigs_to_use <- rownames(sig_score.df)
   celltype_order <- names(sort(cor_mat[type,], decreasing = TRUE))
-  if (!is.null(filter_signatures)) {
-    sigs_to_use <- sigs_to_use[sigs_to_use %in% pull(filter_signatures, signature)]
+  if (!is.null(signatures_collection_filtered)) {
+    sigs_to_use <- sigs_to_use[sigs_to_use %in% names(signatures_collection_filtered)]
   }
   sig_score.df <- sig_score.df[sigs_to_use, celltype_order]
   sig_score.df <- sig_score.df[ ,colSums(is.na(sig_score.df)) == 0]
