@@ -1,6 +1,6 @@
 library(tidyverse)
-# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data
 
+# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data
 sc2pseudoBulk <- function(ref, labels, is_10x){
   if (class(ref) == "Seurat") {
     celltypes <- unique(labels$label)
@@ -38,22 +38,36 @@ sc2pseudoBulk <- function(ref, labels, is_10x){
   return(list("pseudoBulk" = as.matrix(mat_bulk), "newLabels" = lables_new))
 }
 
+# Generate a matrix of median expression of pure cell types
+makePureCTMat <- function(ref, labels){
 
-# This function return a correlation matrix given the counts and cell types
-getCellTypeCorrelation <- function(ref, labels){
+  celltypes <- unique(labels$label)
 
-  celltypes <- unique(labels[,2])
-  samples <- labels[,2]
-
-  # Calculate median expression for each cell type
-  median_expression <- lapply(celltypes, function(x){
-    if (sum(samples == x) == 1) {
-      as.numeric(ref[,samples == x])
+  pure_ct_mat<- sapply(celltypes, function(type){
+    type_samples <- labels[,2] == type
+    if (sum(type_samples) == 1) {
+      type_vec <- as.vector(ref[,type_samples])
     }else{
-      apply(ref[,samples == x], 1, function(x) median(x, na.rm = TRUE))
+      type_vec <- Rfast::rowMedians(ref[,type_samples])
     }
   })
-  names(median_expression) <- celltypes
+  rownames(pure_ct_mat) <- rownames(ref)
+
+  return(pure_ct_mat)
+}
+
+# This function return a correlation matrix given the counts and cell types
+getCellTypeCorrelation <- function(pure_ct_mat){
+
+  celltypes <- colnames(pure_ct_mat)
+
+  # Use top 3K highly variable genes
+  mean_gene_expression <- Rfast::rowmeans(pure_ct_mat)
+  high_gene_expression_cutoff <- quantile(mean_gene_expression, 0.5, na.rm=TRUE) # Cutoff for top 50% expression genes
+  top_expressed_gene <- mean_gene_expression > high_gene_expression_cutoff
+  genes_sd <- apply(pure_ct_mat[top_expressed_gene,], 1, sd)
+  sd_cutoff <-  sort(genes_sd, decreasing = TRUE)[1001]# Get top 1K genes with high SD as highly variable genes
+  pure_ct_mat <- pure_ct_mat[genes_sd > sd_cutoff,]
 
   # Make correlation matrix
   cor_mat <- matrix(1, ncol = length(celltypes), nrow = length(celltypes), dimnames = list(celltypes, celltypes))
@@ -62,8 +76,8 @@ getCellTypeCorrelation <- function(ref, labels){
   for (i in 1:nrow(lower_tri_coord)) {
     celltype_i <- rownames(cor_mat)[lower_tri_coord[i, 1]]
     celltype_j <- colnames(cor_mat)[lower_tri_coord[i, 2]]
-    cor_mat[lower_tri_coord[i, 1], lower_tri_coord[i, 2]] <- cor(median_expression[celltype_i][[1]], median_expression[celltype_j][[1]])
-    cor_mat[lower_tri_coord[i, 2], lower_tri_coord[i, 1]] <- cor(median_expression[celltype_i][[1]], median_expression[celltype_j][[1]])
+    cor_mat[lower_tri_coord[i, 1], lower_tri_coord[i, 2]] <- cor(pure_ct_mat[,celltype_i], pure_ct_mat[,celltype_j], method = "spearman")
+    cor_mat[lower_tri_coord[i, 2], lower_tri_coord[i, 1]] <- cor(pure_ct_mat[,celltype_i], pure_ct_mat[,celltype_j], method = "spearman")
   }
 
   return(cor_mat)
@@ -71,89 +85,19 @@ getCellTypeCorrelation <- function(ref, labels){
 
 
 # This function return a vector of cell type dependencies
-getDependencies <- function(OBOfile, labels){
+getDependencies <- function(ontology_file_checked){
+  ont <- read_tsv(ontology_file_checked)
 
-  celltypes <- unique(labels[,2])
-  cl <- suppressWarnings(ontologyIndex::get_ontology(OBOfile))
-
+  celltypes <- pull(ont[,2])
   dep_list <- vector(mode = "list", length = length(celltypes))
   names(dep_list) <- celltypes
 
-  for (type in celltypes) {
-    # Get cell type ontology
-    ont <- as.character(unique(labels[labels[,2] == type, 1]))
-    # Find descendants
-    descendants <- ontologyIndex::get_descendants(cl, roots = ont, exclude_roots = T)
-    # Find ancestors
-    ancestors <- ontologyIndex::get_ancestors(cl, terms = ont)
-    ancestors <- ancestors[ancestors != ont]
-    # Use only ontologies from the reference
-    dep_cells <- c(descendants, ancestors)
-    dep_cells <- dep_cells[dep_cells %in% labels[,1]]
-    # Go back to cell type labels
-    dep_cells <- unique(labels[labels[,1] %in% dep_cells, 2])
-
-    dep_list[[type]] <- dep_cells
+  for (i in 1:nrow(ont)) {
+    dep_cells <- c(strsplit(pull(ont[i,3]), ", ")[[1]], strsplit(pull(ont[i,4]), ", ")[[1]])
+    dep_list[[i]] <- dep_cells[!is.na(dep_cells)]
   }
 
   return(dep_list)
-}
-
-
-createInSilicoMixture <- function(ref, labels, cor_mat, mixture_fractions, add_noise){
-
-  celltypes <- unique(labels[,2])
-
-  fractions_mat_list <- lapply(celltypes, function(type) {
-
-    # Get control vector
-    control <- names(which.min(cor_mat[type,]))
-    control_samples <- labels[,2] == control
-    if (sum(control_samples) == 1) {
-      control_vec <- as.vector(ref[,control_samples])
-    }else{
-      control_vec <- as.vector(apply(ref[,control_samples], 1, median))
-    }
-
-    # Get CTOI vector
-    type_samples <- labels[,2] == type
-    if (sum(type_samples) == 1) {
-      type_vec <- as.vector(ref[,type_samples])
-    }else{
-      type_vec <- as.vector(apply(ref[,type_samples], 1, median))
-    }
-
-    # Calculate fractions
-    if (add_noise) {
-      fractions_mat <- sapply(mixture_fractions, function(f) {
-      (type_vec*f + control_vec*(1-f))*runif(1, 0.95, 1.05) # Multiply by a random number between 0.95-1.05 for noise
-      })
-    }else{
-      fractions_mat <- sapply(mixture_fractions, function(f) {
-      type_vec*f + control_vec*(1-f)
-      })
-    }
-    colnames(fractions_mat) <- paste(mixture_fractions, control, sep = "_")
-    fractions_mat
-  })
-  names(fractions_mat_list) <- celltypes
-
-  # Transform list of matrices to one matrix
-  ref_insilico_mat <- as.matrix(do.call(cbind.data.frame, fractions_mat_list))
-  colnames(ref_insilico_mat) <- sub("\\.", "_", colnames(ref_insilico_mat))
-  rownames(ref_insilico_mat) <- rownames(ref)
-
-  # Split matrices into pure and fractions cell types
-  pure_mat <- ref_insilico_mat[,grepl("_1_", colnames(ref_insilico_mat))]
-  frac_mat <- ref_insilico_mat[,!grepl("_1_", colnames(ref_insilico_mat))]
-
-  if (length(celltypes) != ncol(pure_mat)) {
-    print("WARNING: Please remove _1_ from cell types names")
-  }
-
-  insilico_mat <- list("pureMat" = pure_mat, "fracMat" = frac_mat)
-
-  return(insilico_mat)
 }
 
 # Generate a list with quantiles matrices for each cell type
@@ -178,18 +122,63 @@ makeQuantiles <- function(ref, labels, probs){
 }
 
 
-# Make score_mat tidy
-# TODO: This function take too long
-makeScoreMatTidy <- function(scores_mat){
-  scores_mat_tidy <- scores_mat %>%
-  as_tibble(., rownames = NA) %>%
-  rownames_to_column(var = "signature") %>%
-  pivot_longer(cols = -signature,
-               names_to = c("mixture_ct", "mixture_fraction", "mixture_control"),
-               names_sep = "_",
-               values_to = "score") %>%
-  separate(signature, into = "signature_ct", sep = "_", remove = FALSE, extra = "drop") # Speed bottleneck!!
+makeMixture <- function(ctoi, ref, labels, pure_ct_mat, dep_list, n_samples){
+
+  ctoi_mat <- ref[,labels[,2] == ctoi]
+
+  # Make pure CTOI fractions matrix with n_samples (columns)
+  pure_ctoi_mat <- sapply(1:n_samples, function(i){
+
+    # Sample 0.2 of the #CTOI samples available in ref
+    random_type_samples <- sample(1:ncol(ctoi_mat),
+                                  ifelse(ncol(ctoi_mat) >= 5, round(0.2*ncol(ctoi_mat)), 1))
+
+    if (length(random_type_samples) == 1) {
+      as.vector(ctoi_mat[,random_type_samples])
+    }else{
+      Rfast::rowMedians(ctoi_mat[,random_type_samples], parallel = TRUE)
+    }
+
+  })
+  rownames(pure_ctoi_mat) <- rownames(ref)
+
+  # Make fractions for pure_ctoi_mat
+  frac <- c(0, runif(n_samples-2, 0.01, 0.25), 0.25)
+  pure_ctoi_mat.fracs <- t(t(pure_ctoi_mat) * frac)
+  colnames(pure_ctoi_mat.fracs) <- make.unique(rep(ctoi, ncol(pure_ctoi_mat.fracs)))
+
+  # Add background cell types to the pure CTOI matrix
+  getFracs <- function(n_types, ctoi_frac){
+    x <- runif(n_types, 0, 1)
+    fracs <- x * (1-ctoi_frac) / sum(x)
+    return(round(fracs, 4))
+  }
+
+  # Choose control cell types
+  not_dep_cells <- celltypes[!celltypes %in% c(ctoi, dep_list[[ctoi]])] # Use only independent cell types
+  pure_ct_mat.nodep <- pure_ct_mat[,colnames(pure_ct_mat) %in% not_dep_cells]
+  n_types <- ifelse(length(not_dep_cells) > 7, 7, length(not_dep_cells))  # Take maximum of 7 cell types for the mixture
+
+  # Add control cells to the corresponding columns in pure_ctoi_mat.fracs
+  for (i in 1:ncol(pure_ctoi_mat.fracs)) {
+    types_random_fracs <- getFracs(n_types, ctoi_frac = frac[i])     # Get control cell types fractions
+    random_type_samples <- sample(1:ncol(pure_ct_mat.nodep), n_types)  # Sample n_types of the background cell types
+    types_frac_vector <- rowSums(pure_ct_mat.nodep[,random_type_samples] %*% diag(types_random_fracs))  # Multiply each pure cell type by the corresponding fraction and sum by rows
+    pure_ctoi_mat.fracs[,i] <- pure_ctoi_mat.fracs[,i] + types_frac_vector # Add the background cell type fractions to the fraction of CTOI
+  }
+
+
+
+  out <- list(mixture = pure_ctoi_mat.fracs,
+              ctoi_fracs = frac)
+
+  return(out)
 }
+
+
+
+
+
 
 
 # Plot signatures heatmap for a cell type
@@ -197,8 +186,8 @@ plotHeatMap <- function(type, scores_mat_tidy, signatures_collection_filtered = 
 
   sig_score.df <- scores_mat_tidy %>%
     filter(signature_ct == type) %>%
-    dplyr::select(signature, mixture_ct, score) %>%
-    pivot_wider(names_from = mixture_ct, values_from = score) %>%
+    dplyr::select(signature, sample_ct, score) %>%
+    pivot_wider(names_from = sample_ct, values_from = score) %>%
     column_to_rownames(var = "signature")
 
   sigs_to_use <- rownames(sig_score.df)

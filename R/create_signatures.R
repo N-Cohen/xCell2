@@ -1,5 +1,5 @@
 
-createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, cor_mat, cor_cells_cutoff, diff_vals, min_genes, max_genes){
+createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes){
 
   celltypes <- unique(labels[,2])
   samples <- labels[,2]
@@ -12,10 +12,24 @@ createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, 
 
     # Find similar cell types
     cor_values <- cor_mat[type, ]
-    cor_values <- cor_values[!names(cor_values) %in% c(type, dep_cells)]
+    cor_values <- sort(cor_values[!names(cor_values) %in% c(type, dep_cells)], decreasing = TRUE)
+    
+    # Remove cell-types with dependencies in cor_values (new!)
+    to_remove <- c()
+    for (i in 1:length(cor_values)) {
+      if (names(cor_values[i]) %in% to_remove) {
+        next
+      }
+      deps <- dep_list[[names(cor_values[i])]]
+      to_remove <- c(to_remove, names(cor_values)[names(cor_values) %in% deps])
+    }
+    cor_values <- cor_values[!names(cor_values) %in% to_remove]
+    
+    # TODO: Should we add extra genes for similar cell-types or not? What are similar cell-types?
     cor_cells_cutoff <- quantile(cor_values, 0.9, na.rm=TRUE)
-    sim_cells <- names(cor_values[which(cor_values > cor_cells_cutoff & cor_values > 0.9)])
-
+    sim_cells <- names(cor_values[which(cor_values > cor_cells_cutoff & cor_values > 0.85)])
+    # sim_cells <- names(cor_values[which(cor_values > 0.5)])
+    # sim_cells <- c()
 
     for (diff in diff_vals) {
       for (p in 1:length(probs)) {
@@ -72,7 +86,7 @@ createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, 
           }
           # Save signature
           if (length(genes) > 0) {
-            sig_name <-  paste(type, probs[p], diff, n_sim, n_all, sep = "_")
+            sig_name <-  paste(paste0(type, "#"), probs[p], diff, n_sim, n_all, sep = "_")
             all_sigs[[sig_name]] <- GSEABase::GeneSet(genes, setName = sig_name)
           }
         }

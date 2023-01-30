@@ -1,67 +1,101 @@
 
+filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score_method, take_top_per, max_sigs){
 
-filterSignatures <- function(signatures_collection, scores_mat_pure_tidy, take_top_per){
 
-  # Fixing bug (part 1): if a cell type do not have > 2 scores with other cell types (because he is the mixtures control)
-  lonely_celltype <- scores_mat_pure_tidy %>%
+  celltypes <- colnames(pure_ct_mat)
+  
+  # Score signatures
+  scores_mat <- matrix(nrow = length(signatures_collection),
+                       ncol = ncol(pure_ct_mat),
+                       dimnames = list(names(signatures_collection), colnames(pure_ct_mat)))
+
+  sig_type <- unlist(lapply(strsplit(names(signatures_collection), "#"), "[", 1))
+
+  for (type in celltypes) {
+
+    type_signatures <- signatures_collection[type == sig_type]
+    dep_cells <- dep_list[[type]]
+
+    if (length(dep_cells) > 0) {
+      types_to_use <- !colnames(scores_mat) %in% dep_cells
+    }else{
+      types_to_use <- rep(TRUE, ncol(scores_mat))
+    }
+
+    if (score_method == "ssgsea") {
+      # Score with ssGSEA
+      ssgsea_out <- GSVA::gsva(pure_ct_mat[, types_to_use], signatures_collection[type == sig_type], method = "ssgsea", ssgsea.norm = FALSE, verbose = FALSE)
+      scores_mat[rownames(ssgsea_out), colnames(ssgsea_out)] <- ssgsea_out
+
+    }else if(score_method == "singscore"){
+      # Score with SingScore
+      sub_mix <- pure_ct_mat[,types_to_use]
+      sub_mix_ranked <- singscore::rankGenes(sub_mix)
+      for (i in 1:length(type_signatures)) {
+        sig <- type_signatures[i]
+        scores_out <- singscore::simpleScore(sub_mix_ranked, upSet = sig[[1]], centerScore = FALSE)$TotalScore
+        scores_mat[which(rownames(scores_mat) == names(sig)),
+                   colnames(sub_mix_ranked)] <- scores_out
+      }
+    }
+  }
+
+  # Make score matrix tidy
+  scores_mat_tidy <- scores_mat %>%
+    as_tibble(., rownames = NA) %>%
+    rownames_to_column(var = "signature") %>%
+    pivot_longer(cols = -signature, values_to = "score", names_to = "sample_ct") %>%
+    separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")
+
+  # Remove signatures which the ctoi score is not the max_score
+  signatures_filtered <- scores_mat_tidy %>%
     drop_na() %>%
-    group_by(signature_ct) %>%
-    summarise(n = length(unique(mixture_ct))) %>%
-    filter(n <= 2) %>%
-    pull(signature_ct)
-
+    group_by(signature_ct, signature) %>%
+    filter(any(signature_ct == sample_ct & score == max(score)))
+  
+  # Take all signatures of cell types that did not pass the filtering above
+  cts_did_not_pass <- celltypes[!celltypes %in% unique(signatures_filtered$signature_ct)]
+  for (ct in cts_did_not_pass) {
+    ct_scores <- scores_mat_tidy %>%
+      filter(signature_ct == ct & signature_ct == sample_ct) %>% 
+      drop_na() %>% 
+      rename(score_ct = score)
+    
+    signatures_filtered <- rbind(signatures_filtered, scores_mat_tidy %>%
+                                   filter(signature_ct == ct) %>% 
+                                   drop_na() %>% 
+                                   left_join(select(ct_scores, signature, score_ct), by = "signature") %>% 
+                                   rowwise() %>% 
+                                   filter(score <= score_ct) %>% 
+                                   select(-score_ct))
+  }
 
   # Rank signature by Grubbs' test
-  signatures_filtered <- scores_mat_pure_tidy %>%
-    filter(!signature_ct %in% lonely_celltype) %>%
-    drop_na() %>%
-    # Remove signatures which the ctoi score is not the max_score
-    group_by(signature_ct, signature) %>%
-    filter(any(signature_ct == mixture_ct & score == max(score))) %>%
+  signatures_filtered <- signatures_filtered %>%
     # Rank signatures
     summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$p.value) %>%
     mutate(grubbs_rank = percent_rank(dplyr::desc(grubbs_pvalue))*100) %>%
     arrange(-grubbs_rank, .by_group = TRUE) %>%
     # Filter signatures
     filter(grubbs_rank >= quantile(grubbs_rank, 1-take_top_per, na.rm = TRUE))
+  
 
+  # Maximum max_sigs signature per cell type
+   ct_to_filt <- names(table(signatures_filtered$signature_ct)[table(signatures_filtered$signature_ct) > max_sigs])
+   ct_to_keep <- signatures_filtered %>%
+     filter(!signature_ct %in% ct_to_filt)
 
-  # Maximum 20 signature per cell type
-  ct_to_filt <- names(table(signatures_filtered$signature_ct)[table(signatures_filtered$signature_ct) > 20])
-  ct_to_keep <- signatures_filtered %>%
-    filter(!signature_ct %in% ct_to_filt)
+   signatures_filtered <- signatures_filtered %>%
+     group_by(signature_ct) %>%
+     filter(signature_ct %in% ct_to_filt) %>%
+     filter(row_number() %in% 1:max_sigs) %>%
+     rbind(ct_to_keep)
 
-  signatures_filtered <- signatures_filtered %>%
-    group_by(signature_ct) %>%
-    filter(signature_ct %in% ct_to_filt) %>%
-    filter(row_number() %in% 1:20) %>%
-    rbind(ct_to_keep)
-
-
-  # Fixing bug (part 2)
-  if (length(lonely_celltype) > 0) {
-    lonely_celltype_signatures_filtered <- scores_mat_pure_tidy %>%
-      filter(signature_ct %in% lonely_celltype) %>%
-      drop_na() %>%
-      group_by(signature_ct, signature) %>%
-      filter(any(signature_ct == mixture_ct & score == max(score))) %>%
-      mutate(order = ifelse(signature_ct == mixture_ct, 2, 1)) %>%
-      summarise(delta = score - lag(score, order_by = order)) %>%
-      drop_na() %>%
-      # Filter signatures
-      group_by(signature_ct) %>%
-      filter(delta >= quantile(delta, 1-take_top_per, na.rm = TRUE)) %>%
-      dplyr::select(-delta) %>%
-      mutate(signature_ct = lonely_celltype, grubbs_pvalue = NA, grubbs_rank = NA) %>%
-      dplyr::select(signature_ct, signature, grubbs_pvalue, grubbs_rank)
-
-    signatures_filtered <- rbind(signatures_filtered, lonely_celltype_signatures_filtered)
-  }
 
   signatures_collection_filtered <- signatures_collection[names(signatures_collection) %in% signatures_filtered$signature]
 
+  filter_signature_out <- list("scoreMatTidy" = scores_mat_tidy, "sigCollectionFilt" = signatures_collection_filtered)
 
-  return(signatures_collection_filtered)
+  return(filter_signature_out)
 }
 
-#
