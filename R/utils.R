@@ -176,11 +176,6 @@ makeMixture <- function(ctoi, ref, labels, pure_ct_mat, dep_list, n_samples){
 }
 
 
-
-
-
-
-
 # Plot signatures heatmap for a cell type
 plotHeatMap <- function(type, scores_mat_tidy, signatures_collection_filtered = NULL, cor_mat){
 

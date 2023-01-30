@@ -150,7 +150,7 @@ ref <- as.matrix(all_models_expr[,labels$Sample])
 # Get cell-types ontology
 ontology <- unique(as_tibble(labels[,c(2,4)]))
 xCell2GetLineage(ontology_table = ontology, out_file = "Data/kass_tumor_dependencies.tsv")
-
+ontology_file_checked <- "Data/kass_tumor_dependencies_checked.tsv"
 
 # Split all_models_annot_tumor to train/test ~(66%-33%) - 8146 samples
 train_ds <- c("E-MTAB-6643", "GSE100382", "GSE80727", names(sort(table(labels$Dataset), decreasing = T)[1:95]))
@@ -164,63 +164,8 @@ labels <- labels %>%
   as.data.frame()
 
 
+
+
 xcell2_kass_ref_tumor <- xCell2NewRef(ref, labels, data_type = "rnaseq")
 saveRDS(xcell2_kass_ref_tumor, "/bigdata/almogangel/kassandra_data/kassandra_xcell2ref_tumor.rds")
 
-
-
-
-
-# # Train (5364)
-# sum(sort(table(all_models_annot_tumor$Dataset), decreasing = T)[1:95]) # 5364
-# train_ds <- names(sort(table(all_models_annot_tumor$Dataset), decreasing = T)[1:95])
-# all_models_annot_tumor_train <- all_models_annot_tumor[all_models_annot_tumor$Dataset %in% train_ds,]
-#
-# # Test (2782)
-# all_ds <- unique(all_models_annot_tumor$Dataset)
-# test_ds <- all_ds[!all_ds %in% train_ds]
-# nrow(all_models_annot_tumor[all_models_annot_tumor$Dataset %in% test_ds,])
-# all_models_annot_tumor_test <- all_models_annot_tumor[all_models_annot_tumor$Dataset %in% test_ds,]
-#
-# # Check if all cell-types exist in test and train
-# table(all_models_annot_tumor_train$Tumor_model_annot)
-# table(all_models_annot_tumor_test$Tumor_model_annot)
-# # Macrophages_M2 are missing in train
-# unique(all_models_annot_tumor_test$Tumor_model_annot)[!unique(all_models_annot_tumor_test$Tumor_model_annot) %in% unique(all_models_annot_tumor_train$Tumor_model_annot)]
-# table(all_models_annot_tumor_test[all_models_annot_tumor_test$Tumor_model_annot == "Macrophages_M2",]$Dataset)
-# # Move E-MTAB-6643, GSE100382 and GSE80727 to train
-# ds_to_move <- c("E-MTAB-6643", "GSE100382", "GSE80727")
-# all_models_annot_tumor_train <- rbind(all_models_annot_tumor_train,
-#                                       all_models_annot_tumor_test[all_models_annot_tumor_test$Dataset %in% ds_to_move,])
-# all_models_annot_tumor_test <- all_models_annot_tumor_test[!all_models_annot_tumor_test$Dataset %in% ds_to_move,]
-#
-#
-# # Subset count matrix into test and train
-# all_models_expr_tumor_train <- all_models_expr[,all_models_annot_tumor_train$Sample]
-# all_models_expr_tumor_test <- all_models_expr[,all_models_annot_tumor_test$Sample]
-# rm(all_models_expr)
-#
-# # Prepare train
-# all(all_models_annot_tumor_train$Sample == colnames(all_models_expr_tumor_train))
-# colnames(all_models_annot_tumor_train)[2] <- "Cell_type"
-# ref <- all_models_expr_tumor_train
-# labels <- all_models_annot_tumor_train
-# all(labels$Sample == colnames(ref))
-# labels <- labels %>%
-#   dplyr::select(ont, Cell_type) %>%
-#   dplyr::rename("label" = Cell_type)
-# ref <- as.matrix(ref)
-# labels <- as.data.frame(labels)
-#
-# # Prepare test
-# all(all_models_annot_tumor_test$Sample == colnames(all_models_expr_tumor_test))
-# colnames(all_models_annot_tumor_test)[2] <- "Cell_type"
-# ref_test <- all_models_expr_tumor_test
-# labels_test <- all_models_annot_tumor_test
-# all(labels_test$Sample == colnames(ref_test))
-# labels_test <- labels_test %>%
-#   dplyr::select(ont, Cell_type) %>%
-#   dplyr::rename("label" = Cell_type)
-# ref_test <- as.matrix(ref_test)
-# labels_test <- as.data.frame(labels_test)
-#

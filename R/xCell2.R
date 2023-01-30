@@ -74,7 +74,7 @@ if (1 == 0) {
 }
 
 
-xCell2Train <- function(ref, labels, data_type, score_method = "singscore", mixture_fractions = c(.001, seq(.01, .25, .02)),
+xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(.001, seq(.01, .25, .02)),
                          probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
                          min_genes = 7, max_genes = 200, is_10x = TRUE){
 
@@ -123,30 +123,18 @@ xCell2Train <- function(ref, labels, data_type, score_method = "singscore", mixt
 
   # (3) Get cell type dependencies list
   message("Finding cell types dependencies...")
-  dep_list <- getDependencies(labels)
+  dep_list <- getDependencies(ontology_file_checked)
 
   # (4) Generate a list of quantiles matrices
   message("Calculating quantiles...")
   quantiles_matrix <- makeQuantiles(ref[,train], labels[train,], probs)
 
-  source("create_signatures.R")
+  source("R/create_signatures.R")
   # (5) Generate signatures for each cell type
   message("Generating signatures...")
   signatures_collection <- createSignatures(ref[,train], labels[train,], dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
 
-
-  # mix_train_list <- lapply(celltypes, function(ctoi){
-  #   makeMixture(ctoi, ref, labels, pure_ct_mat_train, dep_list, n_samples = 1000)
-  # })
-  # names(mix_train_list) <- celltypes
-  #
-  # mix_test_list <- lapply(celltypes, function(ctoi){
-  #   makeMixture(ctoi, ref, labels, pure_ct_mat_test, dep_list, n_samples = 1000)
-  # })
-  # names(mix_test_list) <- celltypes
-
-
-  source("filter_signatures.R")
+  source("R/filter_signatures.R")
   # (6) Filter signatures
   message("Filtering signatures...")
   filter_signature_out <- filterSignatures(pure_ct_mat_test, dep_list, signatures_collection, score_method, take_top_per = 0.1, max_sigs = 10)
@@ -158,7 +146,7 @@ xCell2Train <- function(ref, labels, data_type, score_method = "singscore", mixt
   # (7) Weight signatures with Elastic Net
   # TODO: change script name
   # source("train_models.R")
-  source("train_models_en.R")
+  source("R/train_models_en.R")
   models <- trainModels(ref[,test], labels[test,], pure_ct_mat_test, signatures_collection_filtered, dep_list, mixture_fractions, n_samples = 100, n_random_samples = 10)
 
   # source("transform_scores.R")
