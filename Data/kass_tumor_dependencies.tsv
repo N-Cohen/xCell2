@@ -1,0 +1,26 @@
+label	ont	descendants	ancestors
+CD4_T_cells	CL:0000624		
+CD8_T_cells	CL:0000625		
+T_helpers	CL:0000912		
+NK_cells	CL:0000623		
+Monocytes	CL:0000576		
+Neutrophils	CL:0000775		
+gd_T_Cells	CL:0000798		
+Non_plasma_B_cells	CL:0009050		
+B_cells	CL:0000236		
+Follicular_T_helper	CL:0002038		
+Tregs	CL:0000815		
+Myeloid_cells	CL:0000766		
+Th1_cells	CL:0000545		
+CD8_T_cells_PD1_low	CL:0000900		
+T_cells	CL:0000084		
+Th2_cells	CL:0000546		
+CD8_T_cells_PD1_high	CL:0002437		
+Plasma_B_cells	CL:0000786		
+Th17_cells	CL:0000899		
+Macrophages	CL:0000235		
+Macrophages_M1	CL:0009036		
+Fibroblasts	CL:0000057		
+Endothelium	CL:0000115		
+Macrophages_M2	CL:0009038		
+cancer_cells	CL:0001064		
