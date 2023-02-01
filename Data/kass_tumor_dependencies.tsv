@@ -1,24 +1,24 @@
 label	ont	descendants	ancestors
-CD4_T_cells	CL:0000624		
-CD8_T_cells	CL:0000625		
-T_helpers	CL:0000912		
+CD4_T_cells	CL:0000624	Follicular_T_helper, Th1_cells, Th2_cells, Th17_cells	T_cells
+CD8_T_cells	CL:0000625	CD8_T_cells_PD1_low, CD8_T_cells_PD1_high	T_cells
+T_helpers	CL:0000912		T_cells
 NK_cells	CL:0000623		
-Monocytes	CL:0000576		
-Neutrophils	CL:0000775		
-gd_T_Cells	CL:0000798		
+Monocytes	CL:0000576		Myeloid_cells
+Neutrophils	CL:0000775		Myeloid_cells
+gd_T_Cells	CL:0000798		T_cells
 Non_plasma_B_cells	CL:0009050		
 B_cells	CL:0000236		
-Follicular_T_helper	CL:0002038		
-Tregs	CL:0000815		
-Myeloid_cells	CL:0000766		
-Th1_cells	CL:0000545		
-CD8_T_cells_PD1_low	CL:0000900		
-T_cells	CL:0000084		
-Th2_cells	CL:0000546		
-CD8_T_cells_PD1_high	CL:0002437		
+Follicular_T_helper	CL:0002038		CD4_T_cells, T_cells
+Tregs	CL:0000815		T_cells
+Myeloid_cells	CL:0000766	Monocytes, Neutrophils, Macrophages	
+Th1_cells	CL:0000545		CD4_T_cells, T_cells
+CD8_T_cells_PD1_low	CL:0000900		CD8_T_cells, T_cells
+T_cells	CL:0000084	CD4_T_cells, CD8_T_cells, T_helpers, gd_T_Cells, Follicular_T_helper, Tregs, Th1_cells, CD8_T_cells_PD1_low, Th2_cells, CD8_T_cells_PD1_high, Th17_cells	
+Th2_cells	CL:0000546		CD4_T_cells, T_cells
+CD8_T_cells_PD1_high	CL:0002437		CD8_T_cells, T_cells
 Plasma_B_cells	CL:0000786		
-Th17_cells	CL:0000899		
-Macrophages	CL:0000235		
+Th17_cells	CL:0000899		CD4_T_cells, T_cells
+Macrophages	CL:0000235		Myeloid_cells
 Macrophages_M1	CL:0009036		
 Fibroblasts	CL:0000057		
 Endothelium	CL:0000115		
