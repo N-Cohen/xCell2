@@ -55,32 +55,33 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
 
   # Take all signatures of cell types that did not pass the filtering above
   cts_did_not_pass <- celltypes[!celltypes %in% unique(signatures_filtered$signature_ct)]
-  warning(paste("Poor signature scores are found in some cell types:", paste(cts_did_not_pass, collapse = ", ")))
-  for (ct in cts_did_not_pass) {
-    ct_scores <- scores_mat_tidy %>%
-      filter(signature_ct == ct & signature_ct == sample_ct) %>%
-      drop_na() %>%
-      dplyr::rename(score_ct = score)
+  if (length(cts_did_not_pass) != 0) {
+    warning(paste("Poor signature scores are found in some cell types:", paste(cts_did_not_pass, collapse = ", ")))
+    for (ct in cts_did_not_pass) {
+      ct_scores <- scores_mat_tidy %>%
+        filter(signature_ct == ct & signature_ct == sample_ct) %>%
+        drop_na() %>%
+        dplyr::rename(score_ct = score)
 
-    signatures_filtered <- rbind(signatures_filtered, scores_mat_tidy %>%
-                                   filter(signature_ct == ct) %>%
-                                   drop_na() %>%
-                                   left_join(dplyr::select(ct_scores, signature, score_ct), by = "signature") %>%
-                                   rowwise() %>%
-                                   filter(score <= score_ct) %>%
-                                   dplyr::select(-score_ct))
+      signatures_filtered <- rbind(signatures_filtered, scores_mat_tidy %>%
+                                     filter(signature_ct == ct) %>%
+                                     drop_na() %>%
+                                     left_join(dplyr::select(ct_scores, signature, score_ct), by = "signature") %>%
+                                     rowwise() %>%
+                                     filter(score <= score_ct) %>%
+                                     dplyr::select(-score_ct))
+    }
   }
 
 
   # Filter signature by Grubbs' test
   signatures_filtered.grubbs <- signatures_filtered %>%
     # Rank signatures
-    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$p.value) %>%
+    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value) %>%
     mutate(grubbs_rank = percent_rank(dplyr::desc(grubbs_pvalue))*100) %>%
     arrange(-grubbs_rank, .by_group = TRUE) %>%
     # Filter signatures
-    filter(if (n() >= 10) grubbs_rank >= quantile(grubbs_rank, 1-take_top_per, na.rm = TRUE) else grubbs_rank >= 0) %>% # Minimum ten signatures for each cell type
-    pull(signature)
+    filter(if (n() >= 10) grubbs_rank >= quantile(grubbs_rank, 1-take_top_per, na.rm = TRUE) else grubbs_rank >= 0) # Minimum ten signatures for each cell type
 
 
   # # Top signatures by CTOI delta score
@@ -97,19 +98,20 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
   #   separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")
 
 
-  # # Maximum max_sigs signature per cell type
-  #  ct_to_filt <- names(table(signatures_filtered$signature_ct)[table(signatures_filtered$signature_ct) > max_sigs])
-  #  ct_to_keep <- signatures_filtered %>%
-  #    filter(!signature_ct %in% ct_to_filt)
-  #
-  #  signatures_filtered <- signatures_filtered %>%
-  #    group_by(signature_ct) %>%
-  #    filter(signature_ct %in% ct_to_filt) %>%
-  #    filter(row_number() %in% 1:max_sigs) %>%
-  #    rbind(ct_to_keep)
+  # Maximum max_sigs signature per cell type
+   signatures_filtered.grubbs.maxsig <- signatures_filtered.grubbs %>%
+     group_by(signature_ct) %>%
+     top_n(n = max_sigs, wt = -grubbs_pvalue) %>%
+     pull(signature)
+
+  # signatures_filtered.grubbs.maxsig <- pull(signatures_filtered.grubbs, signature)
 
 
-  signatures_collection_filtered <- signatures_collection[names(signatures_collection) %in% signatures_filtered.grubbs]
+  # TODO: Make sure there is no cell-type with only one signature !!!
+
+
+
+  signatures_collection_filtered <- signatures_collection[names(signatures_collection) %in% signatures_filtered.grubbs.maxsig]
 
   filter_signature_out <- list("scoreMatTidy" = scores_mat_tidy, "sigCollectionFilt" = signatures_collection_filtered)
 
