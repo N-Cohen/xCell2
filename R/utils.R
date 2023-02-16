@@ -93,7 +93,7 @@ getDependencies <- function(ontology_file_checked){
   names(dep_list) <- celltypes
 
   for (i in 1:nrow(ont)) {
-    dep_cells <- c(strsplit(pull(ont[i,3]), ", ")[[1]], strsplit(pull(ont[i,4]), ", ")[[1]])
+    dep_cells <- c(strsplit(pull(ont[i,3]), ";")[[1]], strsplit(pull(ont[i,4]), ";")[[1]])
     dep_list[[i]] <- dep_cells[!is.na(dep_cells)]
   }
 

@@ -100,26 +100,22 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
 
 
   source("R/utils.R")
-  # train/test samples
-  test <- labels$is_test
-  train <- !labels$is_test
 
   # Make pseudo-bulk for single-cell data
   if (data_type == "sc") {
     message("Making pseudo-bulk reference from scRNA-Seq data...")
-    out <- sc2pseudoBulk(ref[,train], labels[train,], is_10x = is_10x)
+    out <- sc2pseudoBulk(ref, labels, is_10x = is_10x)
     ref <- out$pseudoBulk
     labels <- out$newLabels
   }
 
   # (1) Make a table with median expression of pure cell types
   message("Calculating cell types median expression...")
-  pure_ct_mat_train <- makePureCTMat(ref[,train], labels[train,])
-  pure_ct_mat_test <- makePureCTMat(ref[,test], labels[test,])
+  pure_ct_mat <- makePureCTMat(ref, labels)
 
   # (2) Build cell types correlation matrix
   message("Calculating cell type correlation matrix...")
-  cor_mat <- getCellTypeCorrelation(pure_ct_mat_train)
+  cor_mat <- getCellTypeCorrelation(pure_ct_mat)
 
   # (3) Get cell type dependencies list
   message("Finding cell types dependencies...")
@@ -127,17 +123,17 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
 
   # (4) Generate a list of quantiles matrices
   message("Calculating quantiles...")
-  quantiles_matrix <- makeQuantiles(ref[,train], labels[train,], probs)
+  quantiles_matrix <- makeQuantiles(ref, labels, probs)
 
   source("R/create_signatures.R")
   # (5) Generate signatures for each cell type
   message("Generating signatures...")
-  signatures_collection <- createSignatures(ref[,train], labels[train,], dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
+  signatures_collection <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
 
   source("R/filter_signatures.R")
   # (6) Filter signatures
   message("Filtering signatures...")
-  filter_signature_out <- filterSignatures(pure_ct_mat = pure_ct_mat_test, dep_list, signatures_collection, score_method, take_top_per = 0.1, max_sigs = 10)
+  filter_signature_out <- filterSignatures(pure_ct_mat = pure_ct_mat, dep_list, signatures_collection, score_method, take_top_per = 0.1, max_sigs = 10)
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
   signatures_collection_filtered <- filter_signature_out$sigCollectionFilt
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = NULL, cor_mat)
@@ -146,8 +142,8 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   # (7) Weight signatures with Elastic Net
   # TODO: change script name
   # source("train_models.R")
-  source("R/train_models_tmp.R")
-  models <- trainModels(ref, labels, dep_list, pure_ct_mat_test, signatures_collection_filtered, mixture_fractions)
+  #source("R/train_models_tmp.R")
+  #models <- trainModels(ref, labels, dep_list, pure_ct_mat_test, signatures_collection_filtered, mixture_fractions)
 
 
   # Create S4 object for the new reference
@@ -156,13 +152,13 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
     labels = "data.frame",
     correlationMatrix = "matrix",
     dependencies = "list",
-    signatures = "GeneSetCollection",
-    models = "tbl"
+    signatures = "GeneSetCollection"
+    # models = "tbl"
   ))
 
 
   xCell2Ref.s4 <- new("xCell2 Reference", ref = ref, labels = labels, correlationMatrix = cor_mat, dependencies = dep_list,
-                      signatures = signatures_collection_filtered, models = models)
+                      signatures = signatures_collection_filtered)
 
   return(xCell2Ref.s4)
 
@@ -200,7 +196,7 @@ xCell2Analysis <- function(mix, ref){
     # For lasso:
     #mutate(predictions = list(as.numeric(predict(lasso, newx = scores)))) %>%
     # For GGRF:
-    mutate(predictions = list(as.numeric(predict(GRRF, newdata = scores)))) %>%
+    #mutate(predictions = list(as.numeric(predict(GRRF, newdata = scores)))) %>%
     dplyr::select(label, predictions) %>%
     unnest(predictions) %>%
     mutate(samples = rep(colnames(mix), length(celltypes))) %>%
