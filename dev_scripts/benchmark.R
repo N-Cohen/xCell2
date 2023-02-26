@@ -1,8 +1,15 @@
 library(tidyverse)
 
-# xcell2_blood_refsigs <- xCell2Ref.s4@signatures
 # xcell2_tumor_refsigs <- signatures_collection_filtered
+# saveRDS(xcell2_tumor_refsigs, "../xCell2.0/xcell2_tumor_refsigs_16_2_23_500genes_gubbs05.rds")
+
+# xcell2_blood_refsigs <- signatures_collection_filtered
+# saveRDS(xcell2_blood_refsigs, "../xCell2.0/xcell2_blood_refsigs_16_2_23_500genes_gubbs05.rds")
+
 # xcell2_bp_refsigs <- signatures_collection_filtered
+# saveRDS(xcell2_bp_refsigs, "../xCell2.0/xcell2_bp_refsigs_16_2_23_500genes_gubbs05.rds")
+
+
 blood_ds <- c("BG_blood", "GSE107011", "GSE107572", "GSE115823", "GSE127813", "GSE53655", "GSE60424", "GSE64655", "sc_pbmc", "SDY67")
 #blood_ref <- c("EPIC_BRef", "LM22_matrix_with_BC_CIBERSORTX.tsv", "Scaden_PBMC", "xCell2.0 - Blood")
 #blood_tumor <- c("EPIC_BRef", "LM22_matrix_with_BC_CIBERSORTX.tsv", "Scaden_PBMC", "xCell2.0 - Blood")
@@ -16,9 +23,18 @@ ds <- gsub(".tsv", "", list.files(truths_dir))
 
 score_xCell2 <- function(mix, sigs){
   mix_ranked <- singscore::rankGenes(mix)
+
   scores <- sapply(sigs, simplify = TRUE, function(sig){
     singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
   })
+
+  if (is.list(scores)) {
+    sigs <- sigs[-which(lengths(scores) == 0)]
+    scores <- sapply(sigs, simplify = TRUE, function(sig){
+      singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+    })
+  }
+
   colnames(scores) <- names(sigs)
   rownames(scores) <- colnames(mix_ranked)
   scores <- as.data.frame(scores)
@@ -33,13 +49,16 @@ score_xCell2 <- function(mix, sigs){
     as_data_frame()
   xcell2.out <- data.frame(scores[,-1], row.names = scores$celltype, check.names = FALSE)
 
+  return(xcell2.out)
+
 }
 
 
 
 getCorrelations <- function(dataset, celltypes2add = c("Monocytes", "Neutrophils", "NK cells", "cDC", "T-cells", "Tregs",
                                                        "Memory T-helpers", "CD4+ T-cells", "CD8+ T-cells", "B-cells",
-                                                       "Fibroblasts", "Lymphocytes", "Cancer cells")){
+                                                       "Fibroblasts", "Lymphocytes", "Cancer cells", "CD8+ T-cells PD1 low", "CD8+ T-cells PD1 high",
+                                                       "Macrophages", "Macrophages M1", "Macrophages M2", "Endothelial cells", "Non plasma B-cells")){
 
   # Load mixture
   mix <- read.table(paste0("../xCell2.0/Kassandara_data/expressions/", dataset, "_expressions.tsv"), check.names = FALSE, row.names = 1, header = TRUE)
@@ -66,11 +85,8 @@ getCorrelations <- function(dataset, celltypes2add = c("Monocytes", "Neutrophils
   # Run xCell2
   xcell2_blood.out <- score_xCell2(mix, sigs = xcell2_blood_refsigs)
   xcell2_tumor.out <- score_xCell2(mix, sigs = xcell2_tumor_refsigs)
-  if (dataset == "SC_ovarian_cancer") {
-    xcell2_bp.out <- NULL
-  }else{
-    xcell2_bp.out <- score_xCell2(mix, sigs = xcell2_bp_refsigs)
-  }
+  xcell2_bp.out <- score_xCell2(mix, sigs = xcell2_bp_refsigs)
+
 
   # Run xCell
   xcell.out <- as.data.frame(xCell::xCellAnalysis(mix,rnaseq = FALSE))
@@ -172,6 +188,9 @@ for (d in ds) {
 }
 
 
+cors.out.list <- readRDS("/Users/almogang/Documents/xCell2_git/dev_scripts/cors.out.list_500genes_grubbs03_more_cts_grubbs05.rds")
+
+
 all_cors.out <- bind_rows(cors.out.list)
 
 all_cors.out <- all_cors.out %>%
@@ -179,7 +198,7 @@ all_cors.out <- all_cors.out %>%
   mutate(ds_type = ifelse(dataset %in% blood_ds, "Blood datasets", "Tumor datasets"))
 
 
-ctoi <- "Cancer cells"
+ctoi <- "NK cells"
 
 all_cors.out %>%
   mutate(is_xcell2 = ifelse(method %in% c("xCell2.0 - Blood", "xCell2.0 - Tumor", "xCell2.0 - BlueprintEncode"), "yes", "no")) %>%
@@ -235,3 +254,9 @@ cors.out.list[[1]] %>%
         legend.background = element_rect(fill = NA),
         strip.text.x = element_text(size = 16)) +
   labs(x = NULL, colour = NULL, fill = NULL)
+
+
+
+
+
+

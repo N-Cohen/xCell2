@@ -51,7 +51,7 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     drop_na() %>%
     group_by(signature_ct, signature) %>%
     summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value) %>%
-    filter(if (n() >= 5) grubbs_pvalue <= 0.02 else grubbs_pvalue < 1) %>%
+    filter(if (n() >= 5) grubbs_pvalue <= 0.05 else grubbs_pvalue < 1) %>%
     pull(signature)
 
 

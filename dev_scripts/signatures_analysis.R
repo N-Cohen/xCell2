@@ -59,6 +59,14 @@ corDF <- function(datasets = ds, ctoi, signatures_collection){
     scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
       singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
     })
+
+    if (is.list(scores)) {
+      signatures_ctoi <- signatures_ctoi[-which(lengths(scores) == 0)]
+      scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
+        singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+      })
+    }
+
     colnames(scores) <- names(signatures_ctoi)
     rownames(scores) <- colnames(mix_ranked)
 
@@ -85,6 +93,18 @@ corDF <- function(datasets = ds, ctoi, signatures_collection){
   return(ctoi_cors.df)
 
 }
+
+getTopSigs <- function(ctoi, sig_col = signatures_collection_tumor){
+  cors_sigs.df <- corDF(datasets = ds, ctoi = ctoi, signatures_collection = sig_col)
+  top_sigs <- names(which(sort(apply(cors_sigs.df, 1, median), decreasing = TRUE) > 0.85))
+  return(list(cors.df = cors_sigs.df, top_sigs = top_sigs))
+}
+
+# All top sigs ----
+cts <- c("T-cells", "CD4+ T-cells", "CD8+ T-cells", "B-cells",
+         "Fibroblasts", "Cancer cells")
+all_top.list <- lapply(cts, function(ct){getTopSigs(ct)})
+
 
 # B-cells ----
 b_cors_blood_sigs.df <- corDF(datasets = ds, ctoi = "B-cells", signatures_collection = signatures_collection_blood)
@@ -133,6 +153,7 @@ pheatmap::pheatmap(cd8_cors_blood_sigs.df_filtered[top_sigs,], cluster_rows=F, c
 
 # CD4+ T-cells ----
 cd4_cors_blood_sigs.df <- corDF(datasets = ds, ctoi = "CD4+ T-cells", signatures_collection = signatures_collection_blood)
+signatures_collection_tumor <- signatures_collection
 cd4_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "CD4+ T-cells", signatures_collection = signatures_collection_tumor)
 
 p1 <- pheatmap::pheatmap(cd4_cors_blood_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
@@ -151,4 +172,29 @@ top_sigs <- names(which(sort(apply(cd4_cors_blood_sigs.df_filtered, 1, median), 
 
 top_sigs <- names(sort(apply(cd4_cors_blood_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
 pheatmap::pheatmap(cd4_cors_blood_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
+                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
+
+# Choose best sings - Tumor
+cd4_cors_tumor_sigs.df_filtered <- cd4_cors_tumor_sigs.df
+
+top_sigs <- names(which(sort(apply(cd4_cors_tumor_sigs.df_filtered, 1, median), decreasing = TRUE) > 0.85))
+
+top_sigs <- names(sort(apply(cd4_cors_tumor_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
+pheatmap::pheatmap(cd4_cors_tumor_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
+                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
+
+
+# CD8+ T-cells PD1 low ----
+
+pd1_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "CD8+ T-cells PD1 high", signatures_collection = signatures_collection_filtered)
+pheatmap::pheatmap(pd1_cors_tumor_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
+                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
+
+
+
+# Manually ----
+unique(tumor_labels$label)
+xcell2_tumor_refsigs
+x <- corDF(datasets = ds, ctoi = "CD8+ T-cells PD1 high", xcell2_tumor_refsigs)
+pheatmap::pheatmap(x, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
                    breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
