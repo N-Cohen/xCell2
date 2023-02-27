@@ -7,32 +7,28 @@
 ########################################################################################
 
 # USAGE:
-# ontology_table - a table with cell-type <label> column and ontology ID <ont>
-#   For example:
-# A tibble: 25 × 2
-#      label                ont
-#      <chr>               <chr>
-#   1 CD4_T_cells         CL:0000624
-#   2 CD8_T_cells         CL:0000625
-#   3 T_helpers           CL:0000912
-#   4 NK_cells            CL:0000623
-# out_file - path to cell-type lineage file (.tsv)
+# labels - a data frame with rows correspond to samples in ref:
+#   (1) first column for cell type onthology
+#   (2) second column for cell type name (charaters)
 
 # DEPENDENCIES:
 # tidyverse, ontoProc, ontologyIndex
 
-xCell2GetLineage <- function(ontology_table, out_file){
+xCell2GetLineage <- function(labels, out_file){
 
   cl <- ontoProc::getCellOnto()
 
-  ontology_table %>%
+  labels_uniq <- labels %>%
     as_tibble() %>%
+    unique()
+
+  labels_uniq %>%
     rowwise() %>%
     mutate(descendants = list(ontologyIndex::get_descendants(cl, roots = ont, exclude_roots = TRUE)),
            ancestors = list(ontologyIndex::get_ancestors(cl, terms = ont))) %>%
     mutate(ancestors = list(ancestors[ancestors != ont])) %>%
-    mutate(descendants = paste(pull(ontology_table[pull(ontology_table[,2]) %in% descendants, 1]), collapse = ", "),
-           ancestors = paste(pull(ontology_table[pull(ontology_table[,2]) %in% ancestors, 1]), collapse = ", ")) %>%
+    mutate(descendants = paste(pull(labels_uniq[pull(labels_uniq[,1]) %in% descendants, 2]), collapse = ", "),
+           ancestors = paste(pull(labels_uniq[pull(labels_uniq[,1]) %in% ancestors, 2]), collapse = ", ")) %>%
     write_tsv(out_file)
 
   warning("It is recommended that you manually check the cell-type ontology file: ", out_file)
@@ -59,12 +55,11 @@ xCell2GetLineage <- function(ontology_table, out_file){
 # USAGE:
 # ref -  ref matrix of the new reference (genes x samples) (!!!)
 # (!!!) Check that the numbers are not strings.
+
 # labels - a data frame with rows correspond to samples in ref:
 #   (1) first column for cell type onthology
-#   (2) second column for cell type name (charaters) (!!!)
-#   (3) third column if samples should be in test (boolean)
-# (!!!) If a cell-type doesn't have an ontology -> write the ontology of the most recent ancestor
-# OBOfile - https://obofoundry.org/ontology/cl.html
+#   (2) second column for cell type name (charaters)
+
 
 # Remove
 if (1 == 0) {
