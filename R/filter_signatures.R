@@ -1,5 +1,5 @@
 
-filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score_method, take_top_per, max_sigs){
+filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff){
 
 
   celltypes <- colnames(pure_ct_mat)
@@ -45,13 +45,14 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     as_tibble(., rownames = NA) %>%
     rownames_to_column(var = "signature") %>%
     pivot_longer(cols = -signature, values_to = "score", names_to = "sample_ct") %>%
-    separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")
-
-  grubbs <- scores_mat_tidy %>%
+    separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")%>%
     drop_na() %>%
     group_by(signature_ct, signature) %>%
-    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value) %>%
-    filter(if (n() >= 5) grubbs_pvalue <= 0.05 else grubbs_pvalue < 1) %>%
+    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value, .groups = signature_ct)
+
+  # Filter by Grubb's test
+  grubbs <- scores_mat_tidy %>%
+    filter(if (sum(grubbs_pvalue <= grubbs_cutoff) != 0) grubbs_pvalue <= grubbs_cutoff else grubbs_pvalue < 100) %>%
     pull(signature)
 
 

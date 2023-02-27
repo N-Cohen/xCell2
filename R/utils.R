@@ -86,7 +86,7 @@ getCellTypeCorrelation <- function(pure_ct_mat){
 
 # This function return a vector of cell type dependencies
 getDependencies <- function(ontology_file_checked){
-  ont <- read_tsv(ontology_file_checked)
+  ont <- read_tsv(ontology_file_checked, show_col_types = FALSE)
 
   celltypes <- pull(ont[,2])
   dep_list <- vector(mode = "list", length = length(celltypes))

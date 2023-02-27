@@ -71,7 +71,7 @@ if (1 == 0) {
 
 xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(.001, seq(.01, .25, .02)),
                          probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
-                         min_genes = 7, max_genes = 500, is_10x = TRUE){
+                         min_genes = 5, max_genes = 500, is_10x = TRUE){
 
 
   # Validate inputs
@@ -105,40 +105,36 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   }
 
   # (1) Make a table with median expression of pure cell types
-  message("Calculating cell types median expression...")
+  message("Calculating cell-type median expression...")
   pure_ct_mat <- makePureCTMat(ref, labels)
 
   # (2) Build cell types correlation matrix
-  message("Calculating cell type correlation matrix...")
+  message("Calculating cell-type correlation matrix...")
   cor_mat <- getCellTypeCorrelation(pure_ct_mat)
 
   # (3) Get cell type dependencies list
-  message("Finding cell types dependencies...")
+  message("Loading dependencies...")
   dep_list <- getDependencies(ontology_file_checked)
 
-  # (4) Generate a list of quantiles matrices
-  message("Calculating quantiles...")
-  quantiles_matrix <- makeQuantiles(ref, labels, probs)
-
   source("R/create_signatures.R")
-  # (5) Generate signatures for each cell type
+  # (4) Generate signatures for each cell type
   message("Generating signatures...")
+  quantiles_matrix <- makeQuantiles(ref, labels, probs)
   signatures_collection <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
 
   source("R/filter_signatures.R")
-  # (6) Filter signatures
+  # (5) Filter signatures
   message("Filtering signatures...")
-  filter_signature_out <- filterSignatures(pure_ct_mat = pure_ct_mat, dep_list, signatures_collection, score_method, take_top_per = 0.1, max_sigs = 10)
+  filter_signature_out <- filterSignatures(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff = 0.05)
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
   signatures_collection_filtered <- filter_signature_out$sigCollectionFilt
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = NULL, cor_mat)
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = signatures_collection_filtered, cor_mat)
 
-  # (7) Weight signatures with Elastic Net
-  # TODO: change script name
+  # TODO: (6) Weight signatures with Elastic Net
   # source("train_models.R")
-  #source("R/train_models_tmp.R")
-  #models <- trainModels(ref, labels, dep_list, pure_ct_mat_test, signatures_collection_filtered, mixture_fractions)
+  # source("R/train_models_tmp.R")
+  # models <- trainModels(ref, labels, dep_list, pure_ct_mat_test, signatures_collection_filtered, mixture_fractions)
 
 
   # Create S4 object for the new reference
@@ -147,15 +143,16 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
     labels = "data.frame",
     correlationMatrix = "matrix",
     dependencies = "list",
-    signatures = "GeneSetCollection"
+    all_signatures = "GeneSetCollection",
+    filtered_signatures = "GeneSetCollection"
     # models = "tbl"
   ))
 
 
-  xCell2Ref.s4 <- new("xCell2 Reference", ref = ref, labels = labels, correlationMatrix = cor_mat, dependencies = dep_list,
-                      signatures = signatures_collection_filtered)
+  xCell2Ref.S4 <- new("xCell2 Reference", ref = ref, labels = labels, correlationMatrix = cor_mat, dependencies = dep_list,
+                      all_signatures = signatures_collection, filtered_signatures = signatures_collection_filtered)
 
-  return(xCell2Ref.s4)
+  return(xCell2Ref.S4)
 
 }
 
@@ -166,42 +163,52 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
 ########################################################################################
 
 
-xCell2Analysis <- function(mix, ref){
+xCell2Analysis <- function(mix, xcell2ref){
 
-  scoreMixtures <- function(ctoi, mixture, signatures_ctoi){
-
-    mixture_ranked <-  singscore::rankGenes(mixture)
+  scoreMixtures <- function(ctoi, mixture_ranked){
+    signatures_ctoi <- xcell2ref@filtered_signatures[startsWith(names(xcell2ref@filtered_signatures), paste0(ctoi, "#"))]
     scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
       singscore::simpleScore(mixture_ranked, upSet = sig, centerScore = FALSE)$TotalScore
     })
-
-
+    rownames(scores) <- colnames(mix_ranked)
     return(scores)
   }
 
 
-  celltypes <- unique(ref@labels$label)
+
 
   # Rank mixture genes
   mix_ranked <- singscore::rankGenes(mix)
 
-  xCell2_out <- ref@models %>%
+  # By mean scores
+  xCell2_out <- xcell2ref@labels %>%
+    as_tibble() %>%
+    select(label = 2) %>%
+    unique() %>%
     rowwise() %>%
-    mutate(scores = list(scoreMixtures(ctoi = label, mixture = mix_ranked, signatures_ctoi = signatures))) %>%
-    # For lasso:
-    #mutate(predictions = list(as.numeric(predict(lasso, newx = scores)))) %>%
-    # For GGRF:
-    #mutate(predictions = list(as.numeric(predict(GRRF, newdata = scores)))) %>%
-    dplyr::select(label, predictions) %>%
-    unnest(predictions) %>%
-    mutate(samples = rep(colnames(mix), length(celltypes))) %>%
-    pivot_wider(names_from = samples, values_from = predictions) %>%
+    mutate(scores = list(rowMeans(scoreMixtures(ctoi = label, mix_ranked)))) %>%
+    mutate(samples = list(names(scores))) %>%
+    unnest(cols = c(samples, scores)) %>%
+    pivot_wider(names_from = samples, values_from = scores) %>%
     as.data.frame()
 
-  rownames(xCell2_out) <- xCell2_out[,1]
-  xCell2_out <- xCell2_out[,-1]
 
 
+  # # By models
+  # xCell2_out <- xcell2ref@models %>%
+  #   rowwise() %>%
+  #   mutate(scores = list(scoreMixtures(ctoi = label, mixture = mix_ranked, signatures_ctoi = signatures))) %>%
+  #   # For lasso:
+  #   #mutate(predictions = list(as.numeric(predict(lasso, newx = scores)))) %>%
+  #   # For GGRF:
+  #   #mutate(predictions = list(as.numeric(predict(GRRF, newdata = scores)))) %>%
+  #   dplyr::select(label, predictions) %>%
+  #   unnest(predictions) %>%
+  #   mutate(samples = rep(colnames(mix), length(celltypes))) %>%
+  #   pivot_wider(names_from = samples, values_from = predictions) %>%
+  #   as.data.frame()
+  # rownames(xCell2_out) <- xCell2_out[,1]
+  # xCell2_out <- xCell2_out[,-1]
 
   return(xCell2_out)
 }
