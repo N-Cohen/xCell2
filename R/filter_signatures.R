@@ -48,7 +48,7 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")%>%
     drop_na() %>%
     group_by(signature_ct, signature) %>%
-    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value, .groups = signature_ct)
+    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value)
 
   # Filter by Grubb's test
   grubbs <- scores_mat_tidy %>%

@@ -3,14 +3,32 @@ library(gridExtra)
 
 truths_dir <- "../xCell2.0/Kassandara_data/cell_values/"
 mix_dir <- "../xCell2.0/Kassandara_data/expressions/"
+validation_ds <- gsub(".tsv", "", list.files(truths_dir))[c(1:10, 12, 22)]
+validation_ds_blood <- validation_ds[!validation_ds %in% c("ccRCC_cytof_CD45+", "NSCLC_cytof", "WU_ccRCC_RCCTC", "GSE120444", "GSE115823", "GSE121127")]
 
-ds <- gsub(".tsv", "", list.files(truths_dir))
-# blood_ds <- c("BG_blood", "GSE107011", "GSE107572", "GSE115823", "GSE127813", "GSE53655", "GSE60424", "GSE64655", "sc_pbmc", "SDY67")
-# tumor_ds <- ds[!ds %in% blood_ds]
 
-corDF <- function(datasets = ds, ctoi, signatures_collection){
+scoreMixtures <- function(ctoi, mixture_ranked, signatures_collection){
+  signatures_ctoi <- signatures_collection[startsWith(names(signatures_collection), paste0(ctoi, "#"))]
 
-  signatures_ctoi <- signatures_collection[startsWith(names(signatures_collection), ctoi)]
+  scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
+    singscore::simpleScore(mixture_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+  })
+
+  # In case some signatures contain genes that are all not in the mixtures
+  if (is.list(scores)) {
+    signatures_ctoi <- signatures_ctoi[-which(lengths(scores) == 0)]
+    scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
+      singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+    })
+  }
+  colnames(scores) <- names(signatures_ctoi)
+  rownames(scores) <- colnames(mix_ranked)
+  return(t(scores))
+}
+
+getSigsCor <- function(datasets, signatures_collection, filtered_sigs){
+
+  all_celltypes <- unique(gsub(pattern = "#.*", "", names(signatures_collection)))
   all_ds <- sapply(datasets, function(x) NULL)
 
   for (file in datasets) {
@@ -25,72 +43,52 @@ corDF <- function(datasets = ds, ctoi, signatures_collection){
     truth <- truth[rownames(truth) != "Tumor KI67+",] # Fix for some datasets
     rownames(truth) <- plyr::mapvalues(rownames(truth), celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
 
-    ctoi_frac <- truth[ctoi,]
-
-    if (all(is.na(ctoi_frac))) {
-      next
-    }
-
-    ctoi_frac <- ctoi_frac[1, !is.na(ctoi_frac)]
-    ctoi_frac <- ctoi_frac[1, ctoi_frac != ""]
-
-    if (all(ctoi_frac == 0)) {
-      next
-    }
-
-    samples2use <- intersect(names(ctoi_frac), colnames(mix))
-    ctoi_frac <- ctoi_frac[samples2use]
+    samples2use <- intersect(colnames(truth), colnames(mix))
     mix <- mix[,samples2use]
-
-    if (ncol(mix) < 4) {
-      next
-    }
+    truth <- truth[,samples2use]
 
     mix_ranked <- singscore::rankGenes(mix)
 
-
-    if (!all(names(ctoi_frac) == colnames(mix_ranked))) {
-      print(paste0("Problem with ds:" , file))
-      break
+    if (!all(colnames(truth) == colnames(mix_ranked))) {
+      errorCondition(paste0("Error with dataset: ", file))
     }
 
 
-    # Score mixture
-    scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
-      singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+    all_celltypes_cor <- sapply(all_celltypes, function(ctoi){
+
+      scores_ctoi <- scoreMixtures(ctoi, mix_ranked, signatures_collection)
+      truth_ctoi <- truth[ctoi, colnames(scores_ctoi)]
+      truth_ctoi <- truth_ctoi[1, !is.na(truth_ctoi)]
+      truth_ctoi <- truth_ctoi[1, truth_ctoi != ""]
+      scores_ctoi <- scores_ctoi[,names(truth_ctoi)]
+
+      if (!all(names(truth_ctoi) == colnames(scores_ctoi))) {
+        errorCondition(paste0("Error with dataset: ", file))
+      }
+
+      truth_ctoi <- as.numeric(truth_ctoi)
+
+      if (all(truth_ctoi == 0)) {
+        NULL
+      }else{
+        apply(scores_ctoi, 1, function(x){cor(x, truth_ctoi, method = "spearman")})
+      }
+
+
     })
 
-    if (is.list(scores)) {
-      signatures_ctoi <- signatures_ctoi[-which(lengths(scores) == 0)]
-      scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
-        singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
-      })
-    }
-
-    colnames(scores) <- names(signatures_ctoi)
-    rownames(scores) <- colnames(mix_ranked)
-
-
-    # Calculate correlations
-
-    if (!all(names(ctoi_frac) == rownames(scores))) {
-      print(paste0("Problem with ds:" , file))
-      break
-    }
-
-    cors <- apply(scores, 2, function(x){
-      cor(as.numeric(ctoi_frac), x, method = "spearman")
-    })
-
-    cors.df <- as.data.frame(cors)
-    names(cors.df) <- file
-    all_ds[[file]] <- cors.df
+    all_ds[[file]] <- all_celltypes_cor
   }
 
+  all_ds_cors <- unlist(all_ds)
 
-  ctoi_cors.df <- bind_cols(all_ds)
+  cos_final <- tibble(id = names(all_ds_cors), cor = all_ds_cors) %>%
+    separate(id, into = c("dataset", "celltype", "signature"), sep = "\\.", extra = "merge") %>%
+    rowwise() %>%
+    mutate(passed_filter = ifelse(signature %in% filtered_sigs, "yes", "no"))
 
-  return(ctoi_cors.df)
+
+  return(cos_final)
 
 }
 
@@ -100,7 +98,38 @@ getTopSigs <- function(ctoi, sig_col = signatures_collection_tumor){
   return(list(cors.df = cors_sigs.df, top_sigs = top_sigs))
 }
 
-# All top sigs ----
+
+# Get correlations for all blood ref signatures
+xcell2_blood_ref <- xCell2Train(ref, labels, ontology_file_checked,
+                                data_type = "rnaseq",  score_method = "singscore", mixture_fractions = c(0.001, seq(0.01, 0.25, 0.02), 1),
+                                probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
+                                min_genes = 5, max_genes = 500)
+
+blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures, filtered_sigs = names(xcell2_blood_ref@filtered_signatures))
+# blood_ref_sigs_cors <- cos_final
+blood_ref_sigs_cors %>%
+  ungroup() %>%
+  mutate(passed_filter = factor(blood_ref_sigs_cors$passed_filter, levels = c("yes", "no"))) %>%
+  ggplot(., aes(x=dataset, y=cor)) +
+  geom_violin(position = position_dodge(1), alpha = 0.6, fill="#C1CDCD") +
+  geom_jitter(aes(col=passed_filter), size=2, alpha=0.6, position = position_jitterdodge(jitter.width = .1, dodge.width = .5)) +
+  scale_color_manual(values=c("#66CD00", "#CD3333")) +
+  scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
+  geom_hline(yintercept=0.8, linetype="dashed", color = "#008B8B", size=0.5) +
+  facet_wrap(~celltype, scales = "free_x") +
+  labs(y = "Spearman r", x = "")
+
+
+
+
+
+
+
+
+
+
+  # All top sigs ----
 cts <- c("T-cells", "CD4+ T-cells", "CD8+ T-cells", "B-cells",
          "Fibroblasts", "Cancer cells")
 all_top.list <- lapply(cts, function(ct){getTopSigs(ct)})
