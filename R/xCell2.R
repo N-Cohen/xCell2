@@ -125,7 +125,7 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   source("R/filter_signatures.R")
   # (5) Filter signatures
   message("Filtering signatures...")
-  filter_signature_out <- filterSignatures(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff = 0.05)
+  filter_signature_out <- filterSignatures(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff = 0.7)
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
   signatures_collection_filtered <- filter_signature_out$sigCollectionFilt
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = NULL, cor_mat)
@@ -143,13 +143,14 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
     labels = "data.frame",
     correlationMatrix = "matrix",
     dependencies = "list",
+    score_mat = "tbl",
     all_signatures = "GeneSetCollection",
     filtered_signatures = "GeneSetCollection"
     # models = "tbl"
   ))
 
 
-  xCell2Ref.S4 <- new("xCell2 Reference", ref = ref, labels = labels, correlationMatrix = cor_mat, dependencies = dep_list,
+  xCell2Ref.S4 <- new("xCell2 Reference", ref = ref, labels = labels, correlationMatrix = cor_mat, dependencies = dep_list, score_mat = scores_mat_pure_tidy,
                       all_signatures = signatures_collection, filtered_signatures = signatures_collection_filtered)
 
   return(xCell2Ref.S4)
@@ -167,13 +168,22 @@ xCell2Analysis <- function(mix, xcell2ref){
 
   scoreMixtures <- function(ctoi, mixture_ranked){
     signatures_ctoi <- xcell2ref@filtered_signatures[startsWith(names(xcell2ref@filtered_signatures), paste0(ctoi, "#"))]
+
     scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
       singscore::simpleScore(mixture_ranked, upSet = sig, centerScore = FALSE)$TotalScore
     })
+
+    # In case some signatures contain genes that are all not in the mixtures
+    if (is.list(scores)) {
+      signatures_ctoi <- signatures_ctoi[-which(lengths(scores) == 0)]
+      scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
+        singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+      })
+    }
+
     rownames(scores) <- colnames(mix_ranked)
     return(scores)
   }
-
 
 
 

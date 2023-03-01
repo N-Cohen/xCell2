@@ -46,13 +46,14 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     rownames_to_column(var = "signature") %>%
     pivot_longer(cols = -signature, values_to = "score", names_to = "sample_ct") %>%
     separate(signature, into = "signature_ct", sep = "#", remove = FALSE, extra = "drop")%>%
-    drop_na() %>%
-    group_by(signature_ct, signature) %>%
-    summarise(grubbs_pvalue = outliers::grubbs.test(score, type = 20, opposite = FALSE, two.sided = FALSE)$p.value)
+    drop_na()
+
 
   # Filter by Grubb's test
   grubbs <- scores_mat_tidy %>%
-    filter(if (sum(grubbs_pvalue <= grubbs_cutoff) != 0) grubbs_pvalue <= grubbs_cutoff else grubbs_pvalue < 100) %>%
+    group_by(signature_ct, signature) %>%
+    summarise(grubbs_statistic = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$statistic[1]) %>%
+    filter(grubbs_statistic >= quantile(grubbs_statistic, grubbs_cutoff)) %>%
     pull(signature)
 
 
