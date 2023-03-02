@@ -1,10 +1,10 @@
 library(tidyverse)
 library(gridExtra)
 
-truths_dir <- "../xCell2.0/Kassandara_data/cell_values/"
-mix_dir <- "../xCell2.0/Kassandara_data/expressions/"
-validation_ds <- gsub(".tsv", "", list.files(truths_dir))[c(1:10, 12, 22)]
-validation_ds_blood <- validation_ds[!validation_ds %in% c("ccRCC_cytof_CD45+", "NSCLC_cytof", "WU_ccRCC_RCCTC", "GSE120444", "GSE115823", "GSE121127")]
+truths_dir <- "../xCell2.0/validation_data//cell_values/"
+mix_dir <- "../xCell2.0/validation_data/expressions/"
+validation_ds <- gsub(".tsv", "", list.files(truths_dir))
+validation_ds_blood <- c("BG_blood", "GSE107011", "GSE107572", "GSE127813", "GSE53655", "GSE60424", "sc_pbmc", "SDY67", "SDY420", "SDY311", "DREAM")
 
 
 scoreMixtures <- function(ctoi, mixture_ranked, signatures_collection){
@@ -22,7 +22,7 @@ scoreMixtures <- function(ctoi, mixture_ranked, signatures_collection){
     })
   }
   colnames(scores) <- names(signatures_ctoi)
-  rownames(scores) <- colnames(mix_ranked)
+  rownames(scores) <- colnames(mixture_ranked)
   return(t(scores))
 }
 
@@ -38,9 +38,6 @@ getSigsCor <- function(datasets, signatures_collection, filtered_sigs){
 
     # Load truth
     truth <- read.table(paste0(truths_dir, file, ".tsv"), header = TRUE, check.names = FALSE, sep = "\t", row.names = 1)
-    truth <- truth[!endsWith(rownames(truth), "l)"),] # Fix for some datasets
-    truth <- truth[rownames(truth) != "Respiratory_cells",] # Fix for some datasets
-    truth <- truth[rownames(truth) != "Tumor KI67+",] # Fix for some datasets
     rownames(truth) <- plyr::mapvalues(rownames(truth), celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
 
     samples2use <- intersect(colnames(truth), colnames(mix))
@@ -82,20 +79,24 @@ getSigsCor <- function(datasets, signatures_collection, filtered_sigs){
 
   all_ds_cors <- unlist(all_ds)
 
-  cos_final <- tibble(id = names(all_ds_cors), cor = all_ds_cors) %>%
+  cor_final <- tibble(id = names(all_ds_cors), cor = all_ds_cors) %>%
     separate(id, into = c("dataset", "celltype", "signature"), sep = "\\.", extra = "merge") %>%
     rowwise() %>%
     mutate(passed_filter = ifelse(signature %in% filtered_sigs, "yes", "no"))
 
 
-  return(cos_final)
+  return(cor_final)
 
 }
 
-getTopSigs <- function(ctoi, sig_col = signatures_collection_tumor){
-  cors_sigs.df <- corDF(datasets = ds, ctoi = ctoi, signatures_collection = sig_col)
-  top_sigs <- names(which(sort(apply(cors_sigs.df, 1, median), decreasing = TRUE) > 0.85))
-  return(list(cors.df = cors_sigs.df, top_sigs = top_sigs))
+getTopSigs <- function(cor_final, top = 0.1){
+  top_sigs <- blood_ref_sigs_cors %>%
+    group_by(celltype, signature) %>%
+    summarise(median_cor = median(cor)) %>%
+    filter(median_cor >= quantile(median_cor, 1-top)) %>%
+    pull(signature)
+
+  return(top_sigs)
 }
 
 
@@ -105,20 +106,71 @@ xcell2_blood_ref <- xCell2Train(ref, labels, ontology_file_checked,
                                 probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
                                 min_genes = 5, max_genes = 500)
 
-blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures, filtered_sigs = names(xcell2_blood_ref@filtered_signatures))
-# blood_ref_sigs_cors <- cos_final
+# saveRDS(xcell2_blood_ref, "../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb07.rds")
+
+# Filter by Grubb's test - all
+grubbs.filtered <- xcell2_blood_ref@score_mat %>%
+  group_by(signature_ct, signature) %>%
+  summarise(grubbs_statistic = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$statistic[1]) %>%
+  filter(grubbs_statistic >= quantile(grubbs_statistic, 0.7)) %>%
+  pull(signature)
+
+# Filter by Grubb's test - similarity
+
+ct_similarity <- xcell2_blood_ref@score_mat %>%
+  rowwise() %>%
+  mutate(similarity = xcell2_blood_ref@correlationMatrix[signature_ct, sample_ct]) %>%
+  select(signature_ct, sample_ct, similarity) %>%
+  unique() %>%
+  group_by(signature_ct) %>%
+  mutate(similarity_level = ifelse(similarity >= quantile(similarity, 0.8), "high", "low")) %>%
+  mutate(similarity_level = ifelse(signature_ct == sample_ct, "same", similarity_level))
+
+
+grubbs.filtered.sim<- xcell2_blood_ref@score_mat %>%
+  filter(signature %in% grubbs.filtered) %>%
+  left_join(ct_similarity, by = c("signature_ct", "sample_ct")) %>%
+  filter(similarity_level != "high") %>%
+  group_by(signature_ct, signature) %>%
+  summarise(grubbs_statistic = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$statistic[1]) %>%
+  filter(grubbs_statistic >= quantile(grubbs_statistic, 0.9)) %>%
+  pull(signature)
+
+
+
+
+blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures, filtered_sigs = grubbs.filtered.sim)
+
+grubbs
+grubbs.high
+grubbs.low <- blood_ref_sigs_cors
+
+grubbs.low <- blood_ref_sigs_cors %>%
+  group_by(dataset, celltype, passed_filter) %>%
+  summarise(median_cor = median(cor)) %>%
+  group_by(dataset, celltype) %>%
+  arrange(passed_filter, .by_group = T) %>%
+  mutate(delta_median =  median_cor - lag(median_cor)) %>%
+  drop_na() %>%
+  select(dataset, celltype, delta_median) %>%
+  group_by(celltype) %>%
+  summarise(delta_median = median(delta_median)) %>%
+  arrange(-delta_median)
+
+
 blood_ref_sigs_cors %>%
   ungroup() %>%
-  mutate(passed_filter = factor(blood_ref_sigs_cors$passed_filter, levels = c("yes", "no"))) %>%
+  filter(celltype %in% unique(blood_ref_sigs_cors$celltype)) %>%
+  mutate(passed_filter = factor(passed_filter, levels = c("yes", "no"))) %>%
   ggplot(., aes(x=dataset, y=cor)) +
-  geom_violin(position = position_dodge(1), alpha = 0.6, fill="#C1CDCD") +
-  geom_jitter(aes(col=passed_filter), size=2, alpha=0.6, position = position_jitterdodge(jitter.width = .1, dodge.width = .5)) +
-  scale_color_manual(values=c("#66CD00", "#CD3333")) +
+  geom_boxplot(aes(fill=passed_filter)) +
+  scale_fill_manual(values=c("#66CD00", "#CD3333")) +
   scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1)) +
   geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
   geom_hline(yintercept=0.8, linetype="dashed", color = "#008B8B", size=0.5) +
   facet_wrap(~celltype, scales = "free_x") +
-  labs(y = "Spearman r", x = "")
+  labs(y = "Spearman r", x = "") +
+  theme(axis.text.x = element_text(angle = 40, hjust=1, face = "bold"))
 
 
 
