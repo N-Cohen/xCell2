@@ -1,7 +1,7 @@
 library(tidyverse)
 
 mref <-  readRDS("/bigdata/mahmoudy/humanCellTypeAtlas.rds")
-
+aaaa
 dim(mref$data)
 colnames(mref$data)[1:10]
 View(mref$data[1:10, 1:10])
