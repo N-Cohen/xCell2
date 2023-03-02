@@ -1,0 +1,114 @@
+xCell2_labels	all_labels	ont	ont_is_fake
+Regulatory NK cells	Regulatory NK cells;Regulatory_NK_cells	NA	NA
+Transitional memory T-helpers	Transitional_memory_T_helpers;Transitional memory T-helpers	NA	NA
+Preadipocytes	Preadipocytes	NA	NA
+Neurons	Neurons	NA	NA
+Non-switched memory B-cells	Non-switched memory B-cells;B NSM;Non_switched_memory_B_cells	CL:0000970	no
+Class-switched memory B-cells	Class-switched memory B-cells;B SM;Class_switched_memory_B_cells	CL:0000972	no
+Exhausted B-cells	Exhausted B-cells;B Ex	NA	NA
+Memory B-cells	Memory B-cells;B Memory;B cells memory	NA	NA
+CD27neg memory B-cells	CD27neg memory B-cells;CD27neg_Memory_B_cells	CL:0000787	yes
+naive B-cells	naive B-cells;B Naive;Naive_B_cells;B cells naive	CL:0000788	no
+Plasma cells	Plasma cells;Plasma_B_cells;Plasma-B-cells	CL:0000786	no
+Non plasma B-cells	Non plasma B-cells;Non_plasma_B_cells;Non-plasma-B-cells	CL:0009050	yes
+Non plasmablasts	Non plasmablasts;Non_plasmablasts	NA	NA
+Plasmablasts	Plasmablasts	CL:0000980	no
+pro B-cells	pro B-cells	NA	NA
+CD4+ memory T-cells	CD4+ memory T-cells;T CD4 Memory;T cells CD4 memory activated	NA	NA
+CD4+ naive T-cells	CD4+ naive T-cells;T CD4 Naive;T cells CD4 naive	NA	NA
+CD4+ Tcm	CD4+ Tcm	NA	NA
+CD4+ Tem	CD4+ Tem	NA	NA
+CD4+ Tte	CD4+ Tte;T CD4 TE	NA	NA
+Tgd cells	Tgd cells;T gd;gd_T_Cells;gd_T_cells;gd-T-Cells;T cells gamma delta	CL:0000798	no
+T gd Vd2	T gd Vd2	NA	NA
+T gd non-Vd2	T gd non-Vd2	NA	NA
+Naive T-helpers	Naive T-helpers;Naive_T_helpers	CL:0000912	yes
+Th1 cells	Th1 cells;Th1;Th1_cells;Th1-cells	CL:0000545	no
+Th2 cells	Th2 cells;Th2;Th2_cells;Th2-cells	CL:0000546	no
+Th17 cells	Th17 cells;Th17_cells;Th17-cells	CL:0000899	no
+T Memory	T Memory	NA	NA
+Memory T-helpers	Memory T-helpers;Memory_T_helpers	NA	NA
+Central memory T-helpers	Central memory T-helpers;Central_memory_T_helpers	CL:0000912	yes
+Effector memory T-helpers	Effector memory T-helpers;Effector_memory_T_helpers	CL:0000912	yes
+Tregs	Tregs;T cells regulatory (Tregs)	CL:0000815	no
+CD8+ memory T-cells	CD8+ memory T-cells;Memory_CD8_T_cells;T CD8 Memory	CL:0000909	no
+CD8+ Tcm	CD8+ Tcm;Central_memory_CD8_T_cells;T CD8 CM	CL:0000907	no
+CD8+ Tem	CD8+ Tem;Effector_memory_CD8_T_cells;T CD8 EM	CL:0000913	no
+CD8+ Tte	CD8+ Tte;T CD8 TE	NA	NA
+CD8+ Ttm	CD8+ Ttm;Transitional_memory_CD8_T_cells	CL:0000909	yes
+aDC	aDC	NA	NA
+cDC	cDC;CDC	CL:0001057	yes
+iDC	iDC	NA	NA
+pDC	pDC;PDC;pDCs;Plasmacytoid_dendritic_cells	CL:0001058	no
+ly Endothelial cells	ly Endothelial cells	NA	NA
+mv Endothelial cells	mv Endothelial cells	NA	NA
+Keratinocytes	Keratinocytes	NA	NA
+Mesangial cells	Mesangial cells	NA	NA
+Sebocytes	Sebocytes	NA	NA
+Pericytes	Pericytes	NA	NA
+CLP	CLP	NA	NA
+CMP	CMP	NA	NA
+Erythrocytes	Erythrocytes	NA	NA
+GMP	GMP	NA	NA
+Megakaryocytes	Megakaryocytes	NA	NA
+MEP	MEP	NA	NA
+Macrophages M0	Macrophages M0	NA	NA
+Macrophages M1	Macrophages M1;Macrophages-M1;Macrophages_M1	NA	NA
+Macrophages M2	Macrophages M2;Macrophages-M2;Macrophages_M2	NA	NA
+HSC	HSC	NA	NA
+MPP	MPP	NA	NA
+Platelets	Platelets	NA	NA
+B-cells	B-cells;B_cells;B cell	CL:0000236	no
+CD4+ T-cells	CD4+ T-cells;CD4_T_cells;CD4-T-cells;T cell CD4+	CL:0000624	no
+CD8+ naive T-cells	CD8+ naive T-cells;Naive_CD8_T_cells;T CD8 Naive	CL:0000900	no
+CD8+ T-cells	CD8+ T-cells;CD8_T_cells;CD8-T-cells;T cell CD8+	CL:0000625	no
+CD8+ T-cells PD1 high	CD8+ T-cells PD1 high;CD8_T_cells_PD1_high;CD8-T-cells-PD1-high	CL:0002437	yes
+CD8+ T-cells PD1 low	CD8+ T-cells PD1 low;CD8_T_cells_PD1_low;CD8-T-cells-PD1-low	CL:0000900	yes
+NK cells	NK cells;NK_cells;NK-cells;NK cells activated;NK cell	CL:0000623	no
+CD57neg Cytotoxic NK cells	CD57neg Cytotoxic NK cells;CD57neg_Cytotoxic_NK_cells	CL:0000623	yes
+CD57pos Cytotoxic NK cells	CD57pos Cytotoxic NK cells;CD57pos_Cytotoxic_NK_cells	CL:0000623	yes
+NKT	NKT	NA	NA
+Adipocytes	Adipocytes	NA	NA
+Astrocytes	Astrocytes	NA	NA
+Chondrocytes	Chondrocytes	NA	NA
+Endothelial cells	Endothelial cells;Endothelium;Endothelial cell	CL:0000115	no
+Epithelial cells	Epithelial cells;Epithelial cells	NA	NA
+Fibroblasts	Fibroblasts;Fibroblast	CL:0000057	no
+Hepatocytes	Hepatocytes	NA	NA
+Melanocytes	Melanocytes	NA	NA
+MSC	MSC	NA	NA
+Skeletal muscle	Skeletal muscle	NA	NA
+Smooth muscle	Smooth muscle	NA	NA
+Basophils	Basophils;Basophils;Basophils LD	CL:0000767	no
+DC	DC;DCs;Dendritic_cells;Dendritic cells activated	NA	NA
+Eosinophils	Eosinophils;Eosinophils;	CL:0000771	no
+Macrophages	Macrophages	CL:0000235	no
+Mast cells	Mast cells;Mast_cells;Mast cells activated	NA	NA
+Monocytes	Monocytes;Monocytes;Monocyte	CL:0000576	no
+Neutrophils	Neutrophils;Neutrophils;Neutrophil	CL:0000775	no
+Myocytes	Myocytes;Muscle_cells	NA	NA
+Monocytes I	Monocytes I	NA	NA
+Monocytes NC	Monocytes NC;Non_classical_monocytes	NA	NA
+Osteoblast	Osteoblast	NA	NA
+APC	APC	NA	NA
+Alveolar cells	Alveolar_cells	NA	NA
+Classical monocytes	Classical monocytes;Classical_monocytes;Monocytes C	CL:0000860	no
+Cytotoxic NK cells	Cytotoxic NK cells;Cytotoxic_NK_cells	CL:0000623	yes
+Follicular T-helper	Follicular T-helper;Follicular_T_helper;Follicular_T_helpers;Tfh;Follicular-T-helper;T cells follicular helper	CL:0002038	no
+GSM	GSM	NA	NA
+Granulocytes	Granulocytes;Granulocytes LD	CL:0000094	no
+Lymphocytes	Lymphocytes	NA	NA
+Lymphoid cells	Lymphoid cells;Lymphoid_cells	NA	NA
+MAIT	MAIT	NA	NA
+MDSC	MDSC	NA	NA
+Myeloid	Myeloid;Myeloid_cells;Myeloid-cells	CL:0000766	no
+Myeloid Phagocytes	Myeloid Phagocytes	NA	NA
+Myofibroblasts	Myofibroblasts	NA	NA
+Oligodendrocytes	Oligodendrocytes	NA	NA
+Phagocytes	Phagocytes	NA	NA
+T Naive	T Naive	NA	NA
+CD8+ TEMRA	CD8+ TEMRA;TEMRA_CD8_T_cells	CL:0001062	no
+T-helpers TEMRA	T-helpers TEMRA;TEMRA_T_helpers	CL:0000912	yes
+T-cells	T-cells;T_cells;T cells	CL:0000084	no
+T-helpers	T-helpers;T_helpers;Th	CL:0000912	no
+Cancer cells	Cancer cells;Tumor;tumor;cancer-cells;cancer_cells	NA	NA
