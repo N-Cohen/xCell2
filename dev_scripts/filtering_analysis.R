@@ -1,6 +1,8 @@
 library(tidyverse)
 
-scores_mat_tidy_blood <- scores_mat_tidy
+
+
+
 
 makeMixture2 <- function(ctoi, ct_mat = pure_ct_mat, dep = dep_list, fractions = mixture_fractions){
 
