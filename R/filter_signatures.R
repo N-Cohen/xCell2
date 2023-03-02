@@ -4,7 +4,6 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
 
   celltypes <- colnames(pure_ct_mat)
 
-  # Score signatures
   scores_mat <- matrix(nrow = length(signatures_collection),
                        ncol = ncol(pure_ct_mat),
                        dimnames = list(names(signatures_collection), colnames(pure_ct_mat)))
@@ -23,12 +22,10 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     }
 
     if (score_method == "ssgsea") {
-      # Score with ssGSEA
       ssgsea_out <- GSVA::gsva(pure_ct_mat[, types_to_use], signatures_collection[type == sig_type], method = "ssgsea", ssgsea.norm = FALSE, verbose = FALSE)
       scores_mat[rownames(ssgsea_out), colnames(ssgsea_out)] <- ssgsea_out
 
     }else if(score_method == "singscore"){
-      # Score with SingScore
       sub_mix <- pure_ct_mat[,types_to_use]
       sub_mix_ranked <- singscore::rankGenes(sub_mix)
       for (i in 1:length(type_signatures)) {
@@ -40,7 +37,6 @@ filterSignatures <- function(pure_ct_mat, dep_list, signatures_collection, score
     }
   }
 
-  # Make score matrix tidy
   scores_mat_tidy <- scores_mat %>%
     as_tibble(., rownames = NA) %>%
     rownames_to_column(var = "signature") %>%
