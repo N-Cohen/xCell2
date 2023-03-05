@@ -55,7 +55,7 @@ lab_labels <- laboratory_data_annotation %>%
 
 blood_labels <- rbind(blood_labels, lab_labels)
 blood_ref <- cbind(blood_ref, laboratory_data_expressions)
-
+# saveRDS(blood_labels, "Data/kass_blood_labels_with_lab.rds")
 
 ontology_file_checked <- "../xCell2.0/kass_blood_dependencies_checked.tsv"
 

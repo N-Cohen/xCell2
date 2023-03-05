@@ -1,52 +1,39 @@
 library(tidyverse)
 library(Seurat)
 
-cl <- ontoProc::getCellOnto()
+sref <- readRDS("../xCell2.0/reference_data/humanCellTypeAtlas.rds")
 
-sref <- readRDS("/bigdata/mahmoudy/humanCellTypeAtlas.rds")
-
-
-dim(sref$data)
-colnames(sref$data)[1:10]
-rownames(sref$data)[1:10]
-View(sref$data[1:10, 1:10])
-length(sref$tissue_titles)
-unique(sref$lowest.label)
-
-all_ds <- unique(unlist(strsplit(unique(sref$series), ",")))
-all_ont <- unique(sref$cl.id)
-
-ont <- all_ont[1]
-
-ont2check <- c()
-ont2check_old <- c()
-
-while (length(ont2check) != length(ont2check_old)) {
-  related.cl <- c(ontologyIndex::get_descendants(cl, roots = ont, exclude_roots = TRUE),
-                  ontologyIndex::get_ancestors(cl, terms = ont))
-  related.cl <- unique(sref$cl.id[sref$cl.id %in% related.cl])
-  ont2check <- c(ont2check, related.cl)
-
-}
+# all_ds <- unique(unlist(strsplit(unique(sref$series), ",")))
+# all_ont <- unique(sref$cl.id)
+all_label <- unique(sref$lowest.label)
 
 
-unique(sref$lowest.label[sref$cl.id %in% related.cl])
+# Endothelial cells - Epithelial cells
+samples2use1 <- grep("endothe", sref$lowest.label)
+labels.low1 <- sref$lowest.label[samples2use1]
+unique(labels.low1)
+labels.high1 <- rep("Endothelial cells", length(labels.low1))
 
-data_sub <- sref$data[,sref$cl.id %in% related.cl]
+samples2use2 <- grep("epi", sref$lowest.label)
+labels.low2 <- sref$lowest.label[samples2use2]
+unique(labels.low2)
+labels.high2 <- rep("Epithelial cells", length(labels.low2))
 
-sref.seurat <- CreateSeuratObject(counts = sref$data, project = "Super Ref")
-sref.seurat <- FindVariableFeatures(sref.seurat, selection.method = "vst", nfeatures = 2000)
+
+data_sub <- sref$data[,c(samples2use1, samples2use2)]
+dim(data_sub)
+rm(sref)
+
+sref.seurat <- CreateSeuratObject(counts = data_sub, project = "Super Ref")
+sref.seurat <- FindVariableFeatures(sref.seurat, selection.method = "vst", nfeatures = 7000)
 VariableFeaturePlot(sref.seurat)
 sref.seurat <- ScaleData(sref.seurat, features = rownames(data_sub))
 
-# PCA
 sref.seurat <- RunPCA(sref.seurat)
-DimPlot(sref.seurat, reduction = "pca")
-ElbowPlot(sref.seurat, ndims=35)
+ElbowPlot(sref.seurat, ndims=45)
 
-# UMAP
-sref.seurat <- RunUMAP(sref.seurat, dims = 1:15)
-sref.seurat <- AddMetaData(sref.seurat, metadata=sref$lowest.label[sref$cl.id %in% related.cl], col.name = "labels")
+sref.seurat <- RunUMAP(sref.seurat, dims = 1:35)
+sref.seurat <- AddMetaData(sref.seurat, metadata=labels, col.name = "labels")
 DimPlot(sref.seurat, reduction = "umap", group.by = "labels", label = T)
 
 
