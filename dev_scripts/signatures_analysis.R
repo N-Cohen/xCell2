@@ -26,7 +26,7 @@ scoreMixtures <- function(ctoi, mixture_ranked, signatures_collection){
   return(t(scores))
 }
 
-getSigsCor <- function(datasets, signatures_collection, filtered_sigs){
+getSigsCor <- function(datasets, signatures_collection){
 
   all_celltypes <- unique(gsub(pattern = "#.*", "", names(signatures_collection)))
   all_ds <- sapply(datasets, function(x) NULL)
@@ -80,9 +80,7 @@ getSigsCor <- function(datasets, signatures_collection, filtered_sigs){
   all_ds_cors <- unlist(all_ds)
 
   cor_final <- tibble(id = names(all_ds_cors), cor = all_ds_cors) %>%
-    separate(id, into = c("dataset", "celltype", "signature"), sep = "\\.", extra = "merge") %>%
-    rowwise() %>%
-    mutate(passed_filter = ifelse(signature %in% filtered_sigs, "yes", "no"))
+    separate(id, into = c("dataset", "celltype", "signature"), sep = "\\.", extra = "merge")
 
 
   return(cor_final)
@@ -107,16 +105,18 @@ xcell2_blood_ref <- xCell2Train(ref, labels, ontology_file_checked,
                                 min_genes = 5, max_genes = 500)
 
 # saveRDS(xcell2_blood_ref, "../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb07.rds")
+xcell2_blood_ref <- readRDS("../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb07.rds")
+
 
 # Filter by Grubb's test - all
 grubbs.filtered <- xcell2_blood_ref@score_mat %>%
+  filter(signature %in% filtered_sigs) %>%
   group_by(signature_ct, signature) %>%
   summarise(grubbs_statistic = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$statistic[1]) %>%
-  filter(grubbs_statistic >= quantile(grubbs_statistic, 0.7)) %>%
+  filter(grubbs_statistic >= quantile(grubbs_statistic, 0.9)) %>%
   pull(signature)
 
 # Filter by Grubb's test - similarity
-
 ct_similarity <- xcell2_blood_ref@score_mat %>%
   rowwise() %>%
   mutate(similarity = xcell2_blood_ref@correlationMatrix[signature_ct, sample_ct]) %>%
@@ -126,26 +126,23 @@ ct_similarity <- xcell2_blood_ref@score_mat %>%
   mutate(similarity_level = ifelse(similarity >= quantile(similarity, 0.8), "high", "low")) %>%
   mutate(similarity_level = ifelse(signature_ct == sample_ct, "same", similarity_level))
 
-
-grubbs.filtered.sim<- xcell2_blood_ref@score_mat %>%
-  filter(signature %in% grubbs.filtered) %>%
+grubbs.filtered.sim <- xcell2_blood_ref@score_mat %>%
   left_join(ct_similarity, by = c("signature_ct", "sample_ct")) %>%
-  filter(similarity_level != "high") %>%
+  filter(similarity_level != "low") %>%
   group_by(signature_ct, signature) %>%
   summarise(grubbs_statistic = outliers::grubbs.test(score, type = 10, opposite = FALSE, two.sided = FALSE)$statistic[1]) %>%
   filter(grubbs_statistic >= quantile(grubbs_statistic, 0.9)) %>%
   pull(signature)
 
 
+# Get signatures correlations with the validation datasets
+blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures)
 
+cytometry_validation <- c("BG_blood", "GSE107011", "GSE107572", "GSE127813")
 
-blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures, filtered_sigs = grubbs.filtered.sim)
-
-grubbs
-grubbs.high
-grubbs.low <- blood_ref_sigs_cors
-
-grubbs.low <- blood_ref_sigs_cors %>%
+blood_ref_sigs_cors %>%
+  ungroup() %>%
+  mutate(passed_filter = factor(ifelse(signature %in% grubbs.filtered, "yes", "no"), levels = c("yes", "no"))) %>%
   group_by(dataset, celltype, passed_filter) %>%
   summarise(median_cor = median(cor)) %>%
   group_by(dataset, celltype) %>%
@@ -160,11 +157,40 @@ grubbs.low <- blood_ref_sigs_cors %>%
 
 blood_ref_sigs_cors %>%
   ungroup() %>%
-  filter(celltype %in% unique(blood_ref_sigs_cors$celltype)) %>%
-  mutate(passed_filter = factor(passed_filter, levels = c("yes", "no"))) %>%
+  #left_join(grubbs, by = "signature") %>%
+  filter(dataset %in% cytometry_validation) %>%
+  mutate(passed_filter = factor(ifelse(signature %in% grubbs.filtered , "yes", "no"), levels = c("yes", "no"))) %>%
+  #filter(dataset == "BG_blood") %>%
+  ggplot(., aes(x=grubbs_statistic, y=cor, fill= dataset)) +
+  geom_point(aes(col=passed_filter)) +
+  stat_smooth(method = "lm") +
+  scale_color_manual(values=c("#66CD00", "#CD3333")) +
+  scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.2)) +
+  facet_wrap(~celltype, scales = "free_x")
+
+
+no_filt <- blood_ref_sigs_cors %>%
+  ungroup() %>%
+  filter(dataset %in% cytometry_validation) %>%
+  mutate(filter_type = "All")
+
+grubbs_filt <- blood_ref_sigs_cors %>%
+  ungroup() %>%
+  filter(dataset %in% cytometry_validation & signature %in% grubbs.filtered) %>%
+  mutate(filter_type = "Simulations+Grubbs")
+
+simu_filt <- blood_ref_sigs_cors %>%
+  ungroup() %>%
+  filter(dataset %in% cytometry_validation & signature %in% filtered_sigs) %>%
+  mutate(filter_type = "Simulations")
+
+
+rbind(no_filt, rbind(grubbs_filt, simu_filt)) %>%
+  mutate(filter_type = factor(filter_type, levels = c("All", "Simulations", "Simulations+Grubbs"))) %>%
+  filter(celltype %in% unique(simu_filt$celltype)[37:40]) %>%
   ggplot(., aes(x=dataset, y=cor)) +
-  geom_boxplot(aes(fill=passed_filter)) +
-  scale_fill_manual(values=c("#66CD00", "#CD3333")) +
+  geom_boxplot(aes(fill=filter_type)) +
+  scale_fill_manual(values=c("#66CD00", "#CD3333", "blue")) +
   scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1)) +
   geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
   geom_hline(yintercept=0.8, linetype="dashed", color = "#008B8B", size=0.5) +
@@ -173,109 +199,31 @@ blood_ref_sigs_cors %>%
   theme(axis.text.x = element_text(angle = 40, hjust=1, face = "bold"))
 
 
+rbind(no_filt, rbind(grubbs_filt, simu_filt)) %>%
+  mutate(filter_type = factor(filter_type, levels = c("All", "Simulations", "Simulations+Grubbs"))) %>%
+  filter(celltype %in% unique(simu_filt$celltype)) %>%
+  ggplot(., aes(x=filter_type, y=cor)) +
+  geom_boxplot(aes(fill=filter_type)) +
+  stat_summary(fun.y="mean")+
+  scale_fill_manual(values=c("#66CD00", "#CD3333", "blue")) +
+  scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
+  geom_hline(yintercept=0.8, linetype="dashed", color = "#008B8B", size=0.5) +
+  facet_wrap(~dataset, scales = "free_x") +
+  labs(y = "Spearman r", x = "") +
+  theme(axis.text.x = element_text(angle = 40, hjust=1, face = "bold"))
 
 
+# sig_score.df <- xcell2_blood_ref@score_mat  %>%
+#   filter(signature_ct == "Transitional memory T-helpers") %>%
+#   dplyr::select(signature, sample_ct, score) %>%
+#   pivot_wider(names_from = sample_ct, values_from = score) %>%
+#   column_to_rownames(var = "signature")
+# sigs_to_use <- rownames(sig_score.df)
+# celltype_order <- names(sort(xcell2_blood_ref@correlationMatrix["Transitional memory T-helpers",], decreasing = TRUE))
+# celltype_order <- celltype_order[celltype_order %in% names(sig_score.df)]
+# sigs_to_use <- sigs_to_use[sigs_to_use %in% names(xcell2_blood_ref@filtered_signatures)]
+# sig_score.df <- sig_score.df[sigs_to_use, celltype_order]
+# sig_score.df <- sig_score.df[ ,colSums(is.na(sig_score.df)) == 0]
+# pheatmap::pheatmap(sig_score.df, cluster_rows=F, cluster_cols=F, scale = "row", col= RColorBrewer::brewer.pal(11, "RdBu"))
 
-
-
-
-
-
-  # All top sigs ----
-cts <- c("T-cells", "CD4+ T-cells", "CD8+ T-cells", "B-cells",
-         "Fibroblasts", "Cancer cells")
-all_top.list <- lapply(cts, function(ct){getTopSigs(ct)})
-
-
-# B-cells ----
-b_cors_blood_sigs.df <- corDF(datasets = ds, ctoi = "B-cells", signatures_collection = signatures_collection_blood)
-b_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "B-cells", signatures_collection = signatures_collection_tumor)
-
-p1 <- pheatmap::pheatmap(b_cors_blood_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-p2 <- pheatmap::pheatmap(b_cors_tumor_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-
-gl <- list("Blood Ref" = p1, "Tumor Ref" = p2)
-grid.arrange(p1, p2, ncol=2, top="Blood Ref                                                                                                               Tumor Ref")
-
-
-# Choose best sings - Blood
-b_cors_blood_sigs.df_filtered <- b_cors_blood_sigs.df
-
-top_sigs <- names(which(sort(apply(b_cors_blood_sigs.df_filtered, 1, median), decreasing = TRUE) > 0.85))
-
-top_sigs <- names(sort(apply(b_cors_blood_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
-pheatmap::pheatmap(b_cors_blood_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
-
-
-# CD8+ T-cells ----
-cd8_cors_blood_sigs.df <- corDF(datasets = ds, ctoi = "CD8+ T-cells", signatures_collection = signatures_collection_blood)
-cd8_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "CD8+ T-cells", signatures_collection = signatures_collection_tumor)
-
-p1 <- pheatmap::pheatmap(cd8_cors_blood_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-p2 <- pheatmap::pheatmap(cd8_cors_tumor_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-
-gl <- list("Blood Ref" = p1, "Tumor Ref" = p2)
-grid.arrange(p1, p2, ncol=2, top="Blood Ref                                                                                                               Tumor Ref")
-
-
-# Choose best sings - Blood
-cd8_cors_blood_sigs.df_filtered <- cd8_cors_blood_sigs.df
-
-top_sigs <- names(which(sort(apply(cd8_cors_blood_sigs.df_filtered, 1, median), decreasing = TRUE) > 0.85))
-
-top_sigs <- names(sort(apply(cd8_cors_blood_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
-pheatmap::pheatmap(cd8_cors_blood_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
-
-# CD4+ T-cells ----
-cd4_cors_blood_sigs.df <- corDF(datasets = ds, ctoi = "CD4+ T-cells", signatures_collection = signatures_collection_blood)
-signatures_collection_tumor <- signatures_collection
-cd4_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "CD4+ T-cells", signatures_collection = signatures_collection_tumor)
-
-p1 <- pheatmap::pheatmap(cd4_cors_blood_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-p2 <- pheatmap::pheatmap(cd4_cors_tumor_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))[[4]]
-
-gl <- list("Blood Ref" = p1, "Tumor Ref" = p2)
-grid.arrange(p1, p2, ncol=2, top="Blood Ref                                                                                                               Tumor Ref")
-
-
-# Choose best sings - Blood
-cd4_cors_blood_sigs.df_filtered <- cd4_cors_blood_sigs.df
-
-top_sigs <- names(which(sort(apply(cd4_cors_blood_sigs.df_filtered, 1, median), decreasing = TRUE) > 0.85))
-
-top_sigs <- names(sort(apply(cd4_cors_blood_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
-pheatmap::pheatmap(cd4_cors_blood_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
-
-# Choose best sings - Tumor
-cd4_cors_tumor_sigs.df_filtered <- cd4_cors_tumor_sigs.df
-
-top_sigs <- names(which(sort(apply(cd4_cors_tumor_sigs.df_filtered, 1, median), decreasing = TRUE) > 0.85))
-
-top_sigs <- names(sort(apply(cd4_cors_tumor_sigs.df_filtered[top_sigs,], 1, mean), decreasing = TRUE))
-pheatmap::pheatmap(cd4_cors_tumor_sigs.df_filtered[top_sigs,], cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
-
-
-# CD8+ T-cells PD1 low ----
-
-pd1_cors_tumor_sigs.df <- corDF(datasets = ds, ctoi = "CD8+ T-cells PD1 high", signatures_collection = signatures_collection_filtered)
-pheatmap::pheatmap(pd1_cors_tumor_sigs.df, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                         breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))
-
-
-
-# Manually ----
-unique(tumor_labels$label)
-xcell2_tumor_refsigs
-x <- corDF(datasets = ds, ctoi = "CD8+ T-cells PD1 high", xcell2_tumor_refsigs)
-pheatmap::pheatmap(x, cluster_rows=F, cluster_cols=F, scale = "none", col= c(RColorBrewer::brewer.pal(9, "YlOrRd"), "black"),
-                   breaks = seq(0,1,0.1), legend_breaks  = seq(0,1,0.1))

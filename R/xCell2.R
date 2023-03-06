@@ -177,11 +177,11 @@ xCell2Analysis <- function(mix, xcell2ref){
     if (is.list(scores)) {
       signatures_ctoi <- signatures_ctoi[-which(lengths(scores) == 0)]
       scores <- sapply(signatures_ctoi, simplify = TRUE, function(sig){
-        singscore::simpleScore(mix_ranked, upSet = sig, centerScore = FALSE)$TotalScore
+        singscore::simpleScore(mixture_ranked, upSet = sig, centerScore = FALSE)$TotalScore
       })
     }
 
-    rownames(scores) <- colnames(mix_ranked)
+    rownames(scores) <- colnames(mixture_ranked)
     return(scores)
   }
 
