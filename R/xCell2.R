@@ -120,7 +120,9 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   # (4) Generate signatures for each cell type
   message("Generating signatures...")
   quantiles_matrix <- makeQuantiles(ref, labels, probs)
-  signatures_collection <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
+  signatures_collection_up <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, diff_vals, cor_mat, min_genes, max_genes, extra4sim = T, up_genes = T)
+  signatures_collection_down <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes, extra4sim = F, up_genes = F)
+
 
   source("R/filter_signatures.R")
   # (5) Filter signatures

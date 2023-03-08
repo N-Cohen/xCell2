@@ -110,11 +110,11 @@ makeQuantiles <- function(ref, labels, probs){
     type_samples <- labels[,2] == type
     # If there is one sample for this cell type - duplicate the sample to make a data frame
     if (sum(type_samples) == 1) {
-      type.df <- cbind(ref[,type_samples], ref[,type_samples])
+      ref_type <- cbind(ref[,type_samples], ref[,type_samples])
     }else{
-      type.df <- ref[,type_samples]
+      ref_type <- ref[,type_samples]
     }
-    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE))
+    apply(ref_type, 1, function(x){quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE)})
   })
   names(quantiles_matrix) <- celltypes
 
