@@ -2,9 +2,9 @@
 
 # TODO:
 
-########################################################################################
+#########################################################################################
 # Generate cell-type lineage automatically
-########################################################################################
+#########################################################################################
 
 # USAGE:
 # labels - a data frame with rows correspond to samples in ref:
@@ -70,8 +70,8 @@ if (1 == 0) {
 
 
 xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(.001, seq(.01, .25, .02)),
-                         probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
-                         min_genes = 5, max_genes = 500, is_10x = TRUE){
+                        probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
+                        min_genes = 5, max_genes = 500, is_10x = TRUE){
 
 
   # Validate inputs
@@ -120,9 +120,7 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   # (4) Generate signatures for each cell type
   message("Generating signatures...")
   quantiles_matrix <- makeQuantiles(ref, labels, probs)
-  signatures_collection_up <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, diff_vals, cor_mat, min_genes, max_genes, extra4sim = T, up_genes = T)
-  signatures_collection_down <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes, extra4sim = F, up_genes = F)
-
+  signatures_collection <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
 
   source("R/filter_signatures.R")
   # (5) Filter signatures

@@ -1,6 +1,6 @@
 library(tidyverse)
 
-# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data
+# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data.
 sc2pseudoBulk <- function(ref, labels, is_10x){
   if (class(ref) == "Seurat") {
     celltypes <- unique(labels$label)
@@ -110,11 +110,11 @@ makeQuantiles <- function(ref, labels, probs){
     type_samples <- labels[,2] == type
     # If there is one sample for this cell type - duplicate the sample to make a data frame
     if (sum(type_samples) == 1) {
-      ref_type <- cbind(ref[,type_samples], ref[,type_samples])
+      type.df <- cbind(ref[,type_samples], ref[,type_samples])
     }else{
-      ref_type <- ref[,type_samples]
+      type.df <- ref[,type_samples]
     }
-    apply(ref_type, 1, function(x){quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE)})
+    quantiles_matrix <- apply(type.df, 1, function(x) quantile(x, unique(c(probs, rev(1-probs))), na.rm=TRUE))
   })
   names(quantiles_matrix) <- celltypes
 
@@ -196,4 +196,3 @@ plotHeatMap <- function(type, scores_mat_tidy, signatures_collection_filtered = 
   pheatmap::pheatmap(sig_score.df, cluster_rows=F, cluster_cols=F, scale = "row", col= RColorBrewer::brewer.pal(11, "RdBu"))
 
 }
-
