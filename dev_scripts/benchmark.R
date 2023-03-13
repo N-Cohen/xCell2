@@ -44,7 +44,7 @@ score_xCell2 <- function(mix, sigs){
     rowwise() %>%
     separate(signature, into = "celltype", sep = "#", remove = FALSE, extra = "drop") %>%
     group_by(sample, celltype) %>%
-    summarise(score = mean(score)) %>%
+    summarise(score = median(score)) %>%
     pivot_wider(names_from = sample, values_from = score) %>%
     as_data_frame()
   xcell2.out <- data.frame(scores[,-1], row.names = scores$celltype, check.names = FALSE)
@@ -83,8 +83,8 @@ getCorrelations <- function(dataset, celltypes2add = c("Monocytes", "Neutrophils
   truth <- pivot_longer(truth, -celltype, names_to = "sample", values_to = "true_fracs")
 
   # Run xCell2
-  xcell2_blood.out <- score_xCell2(mix, sigs = xcell2_blood_refsigs)
-  xcell2_tumor.out <- score_xCell2(mix, sigs = xcell2_tumor_refsigs)
+  xcell2_blood.out <- score_xCell2(mix, sigs = xcell2_blood_ref@filtered_signatures)
+  xcell2_tumor.out <- score_xCell2(mix, sigs = xcell2_tumor_ref@filtered_signatures)
   xcell2_bp.out <- score_xCell2(mix, sigs = xcell2_bp_refsigs)
 
 

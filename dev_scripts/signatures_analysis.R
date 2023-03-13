@@ -1,7 +1,7 @@
 library(tidyverse)
 library(gridExtra)
 
-truths_dir <- "../xCell2.0/validation_data//cell_values/"
+truths_dir <- "../xCell2.0/validation_data/cell_values/"
 mix_dir <- "../xCell2.0/validation_data/expressions/"
 validation_ds <- gsub(".tsv", "", list.files(truths_dir))
 validation_ds_blood <- c("BG_blood", "GSE107011", "GSE107572", "GSE127813", "GSE53655", "GSE60424", "sc_pbmc", "SDY67", "SDY420", "SDY311", "DREAM")
@@ -104,9 +104,17 @@ xcell2_blood_ref <- xCell2Train(ref, labels, ontology_file_checked,
                                 probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
                                 min_genes = 5, max_genes = 500)
 
-# saveRDS(xcell2_blood_ref, "../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb07.rds")
-xcell2_blood_ref <- readRDS("../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb07.rds")
+# saveRDS(xcell2_blood_ref, "../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb08_simulation.rds")
+xcell2_blood_ref <- readRDS("../xCell2.0/tmp_R_data/blood_ref_1.3.23_grubb08_simulation.rds")
 
+# Get correlations for all tumor ref signatures
+xcell2_tumor_ref <- xCell2Train(ref, labels, ontology_file_checked,
+                                data_type = "rnaseq",  score_method = "singscore", mixture_fractions = c(0.001, seq(0.01, 0.25, 0.02), 1),
+                                probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
+                                min_genes = 5, max_genes = 500)
+
+# saveRDS(xcell2_tumor_ref, "../xCell2.0/tmp_R_data/tumor_ref_11.3.23_grubb08_simulation.rds")
+xcell2_tumor_ref <- readRDS("../xCell2.0/tmp_R_data/tumor_ref_11.3.23_grubb08_simulation.rds")
 
 # Filter by Grubb's test - all
 grubbs.filtered <- xcell2_blood_ref@score_mat %>%
@@ -138,6 +146,7 @@ grubbs.filtered.sim <- xcell2_blood_ref@score_mat %>%
 # Get signatures correlations with the validation datasets
 blood_ref_sigs_cors <- getSigsCor(datasets = validation_ds_blood, signatures_collection = xcell2_blood_ref@all_signatures)
 
+# saveRDS(blood_ref_sigs_cors, "../xCell2.0/blood_ref_sigs_cors.rds")
 cytometry_validation <- c("BG_blood", "GSE107011", "GSE107572", "GSE127813")
 
 blood_ref_sigs_cors %>%
@@ -159,7 +168,7 @@ blood_ref_sigs_cors %>%
   ungroup() %>%
   #left_join(grubbs, by = "signature") %>%
   filter(dataset %in% cytometry_validation) %>%
-  mutate(passed_filter = factor(ifelse(signature %in% grubbs.filtered , "yes", "no"), levels = c("yes", "no"))) %>%
+  mutate(passed_filter = factor(ifelse(signature %in% names(xcell2_blood_ref@filtered_signatures) , "yes", "no"), levels = c("yes", "no"))) %>%
   #filter(dataset == "BG_blood") %>%
   ggplot(., aes(x=grubbs_statistic, y=cor, fill= dataset)) +
   geom_point(aes(col=passed_filter)) +
@@ -183,6 +192,18 @@ simu_filt <- blood_ref_sigs_cors %>%
   ungroup() %>%
   filter(dataset %in% cytometry_validation & signature %in% filtered_sigs) %>%
   mutate(filter_type = "Simulations")
+
+blood_ref_sigs_cors %>%
+  mutate(passed_filter = factor(ifelse(signature %in% names(xcell2_blood_ref@filtered_signatures) , "yes", "no"), levels = c("yes", "no"))) %>%
+  ggplot(., aes(x=dataset, y=cor)) +
+  geom_boxplot(aes(fill=passed_filter)) +
+  scale_fill_manual(values=c("#66CD00", "#CD3333", "blue")) +
+  scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
+  geom_hline(yintercept=0.8, linetype="dashed", color = "#008B8B", size=0.5) +
+  facet_wrap(~celltype, scales = "free_x") +
+  labs(y = "Spearman r", x = "") +
+  theme(axis.text.x = element_text(angle = 40, hjust=1, face = "bold"))
 
 
 rbind(no_filt, rbind(grubbs_filt, simu_filt)) %>%

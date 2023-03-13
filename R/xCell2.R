@@ -63,13 +63,13 @@ xCell2GetLineage <- function(labels, out_file){
 
 # Remove
 if (1 == 0) {
-  data_type = "rnaseq";  score_method = "singscore"; mixture_fractions = c(0.001, seq(0.01, 0.25, 0.02), 1)
+  data_type = "rnaseq";  score_method = "singscore"; mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02))
   probs = c(.1, .25, .33333333, .5); diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
   min_genes = 5; max_genes = 500; is_10x = TRUE
 }
 
 
-xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(.001, seq(.01, .25, .02)),
+xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02)),
                         probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
                         min_genes = 5, max_genes = 500, is_10x = TRUE){
 
@@ -104,26 +104,23 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
     labels <- out$newLabels
   }
 
-  # (1) Make a table with median expression of pure cell types
-  message("Calculating cell-type median expression...")
-  pure_ct_mat <- makePureCTMat(ref, labels)
-
-  # (2) Build cell types correlation matrix
+  # Build cell types correlation matrix
   message("Calculating cell-type correlation matrix...")
+  pure_ct_mat <- makePureCTMat(ref, labels)
   cor_mat <- getCellTypeCorrelation(pure_ct_mat)
 
-  # (3) Get cell type dependencies list
+  # Get cell type dependencies list
   message("Loading dependencies...")
   dep_list <- getDependencies(ontology_file_checked)
 
   source("R/create_signatures.R")
-  # (4) Generate signatures for each cell type
+  # Generate signatures for each cell type
   message("Generating signatures...")
   quantiles_matrix <- makeQuantiles(ref, labels, probs)
   signatures_collection <- createSignatures(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes)
 
   source("R/filter_signatures.R")
-  # (5) Filter signatures
+  # Filter signatures
   message("Filtering signatures...")
   filter_signature_out <- filterSignatures(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff = 0.7)
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
