@@ -1,4 +1,5 @@
 library(tidyverse)
+source("R/xCell2.R")
 
 celltype_conversion <- read_tsv("Data/celltype_conversion_with_ontology.txt")
 celltype_conversion_long <- celltype_conversion %>%
@@ -6,6 +7,12 @@ celltype_conversion_long <- celltype_conversion %>%
   mutate(all_labels = str_split(all_labels, ";")) %>%
   unnest(cols = c(all_labels))
 
+
+### Single-cell RNA-seq references ---------------------------------------
+## Human ---------------------------------------
+
+
+###  Bulk RNA-seq sorted cells references ---------------------------------------
 all_models_expr <- read_csv("../xCell2.0/Kassandara_data/all_models_expr.tsv")
 all_models_expr <- data.frame(all_models_expr[,-1], row.names = all_models_expr$Gene, check.names = F)
 all_models_annot <- read_csv("../xCell2.0/Kassandara_data/all_models_annot.tsv")
@@ -14,6 +21,7 @@ all(colnames(all_models_expr) == all_models_annot$Sample)
 
 # TODO: Add sample and dataset columns to tumor, blood and BP !!!
 
+## Human ---------------------------------------
 # Tumor ref ----
 tumor_ref <- all_models_expr[,!is.na(all_models_annot$Tumor_model_annot)]
 tumor_labels <- all_models_annot[!is.na(all_models_annot$Tumor_model_annot),]
@@ -105,6 +113,9 @@ labels <- as.data.frame(bp_labels)
 
 
 
+
+### Microarry sorted cells references ---------------------------------------
+## Human ---------------------------------------
 # LM222 -----------
 
 lm22_ref <- read.table("../xCell2.0/LM22_source_GEPs.txt", header = TRUE, check.names = FALSE, row.names = 1, sep = "\t")
@@ -124,3 +135,13 @@ lm22_labels[lm22_labels$label %in% c("Mast cells resting", "Mast cells activated
 lm22_labels$ont <- plyr::mapvalues(lm22_labels$label, celltype_conversion_long$xCell2_labels, celltype_conversion_long$ont, warn_missing = FALSE)
 
 
+"B-cells" = lm22_labels[lm22_labels$label %in% c("naive B-cells", "Memory B-cells", "Plasma cells"),]
+"CD4+ T-cells" = cbrx_lm22.out[c("CD4+ naive T-cells", "T cells CD4 memory resting", "CD4+ memory T-cells"),]),
+"Macrophages" = cbrx_lm22.out[c("Macrophages M0", "Macrophages M1", "Macrophages M2"),]),
+"T-cells" = cbrx_lm22.out[c("CD8+ T-cells", "CD4+ naive T-cells", "T cells CD4 memory resting", "CD4+ memory T-cells",
+                                    "Follicular T-helper", "Tregs", "Tgd cells"),]), check.names = FALSE))
+
+
+lm22_labels <- lm22_labels[,c(4,3,1,2)]
+
+xCell2GetLineage(labels = lm22_labels[,1:2], out_file = "../xCell2.0/lm22_dependencies.tsv")
