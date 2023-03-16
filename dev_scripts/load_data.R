@@ -12,6 +12,8 @@ all_models_annot <- read_csv("../xCell2.0/Kassandara_data/all_models_annot.tsv")
 colnames(all_models_annot)[1] <- "Sample"
 all(colnames(all_models_expr) == all_models_annot$Sample)
 
+# TODO: Add sample and dataset columns to tumor, blood and BP !!!
+
 # Tumor ref ----
 tumor_ref <- all_models_expr[,!is.na(all_models_annot$Tumor_model_annot)]
 tumor_labels <- all_models_annot[!is.na(all_models_annot$Tumor_model_annot),]
@@ -100,3 +102,25 @@ ontology_file_checked <- "../xCell2.0/bp_dependencies_checked.tsv"
 
 ref <- as.matrix(bp_ref)
 labels <- as.data.frame(bp_labels)
+
+
+
+# LM222 -----------
+
+lm22_ref <- read.table("../xCell2.0/LM22_source_GEPs.txt", header = TRUE, check.names = FALSE, row.names = 1, sep = "\t")
+
+lm22_labels <- data.frame(sample = colnames(lm22_ref), dataset = rep("LM22", ncol(lm22_ref)))
+
+
+lm22_labels$label <- plyr::mapvalues(lm22_labels$sample, celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
+# T cells CD4 memory resting + T cells CD4 memory activated => CD4+ memory T-cells
+lm22_labels[lm22_labels$label %in% c("T cells CD4 memory resting", "T cells CD4 memory activated"), ]$label <- "CD4+ memory T-cells"
+# NK cells resting + NK cells activated = > NK cells
+lm22_labels[lm22_labels$label %in% c("NK cells resting", "NK cells activated"), ]$label <- "NK cells"
+# Dendritic cells resting + Dendritic cells activated => DC
+lm22_labels[lm22_labels$label %in% c("Dendritic cells resting", "Dendritic cells activated"), ]$label <- "DC"
+# Mast cells resting + Mast cells activated => Mast cells
+lm22_labels[lm22_labels$label %in% c("Mast cells resting", "Mast cells activated"), ]$label <- "Mast cells"
+lm22_labels$ont <- plyr::mapvalues(lm22_labels$label, celltype_conversion_long$xCell2_labels, celltype_conversion_long$ont, warn_missing = FALSE)
+
+

@@ -122,7 +122,7 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   source("R/filter_signatures.R")
   # Filter signatures
   message("Filtering signatures...")
-  filter_signature_out <- filterSignatures(pure_ct_mat, dep_list, signatures_collection, score_method, grubbs_cutoff = 0.7)
+  filter_signature_out <- filterSignatures(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff = 0.8, score_method = "singscore")
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
   signatures_collection_filtered <- filter_signature_out$sigCollectionFilt
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = NULL, cor_mat)
@@ -200,7 +200,6 @@ xCell2Analysis <- function(mix, xcell2ref){
     as.data.frame()
 
 
-
   # # By models
   # xCell2_out <- xcell2ref@models %>%
   #   rowwise() %>%
@@ -214,8 +213,9 @@ xCell2Analysis <- function(mix, xcell2ref){
   #   mutate(samples = rep(colnames(mix), length(celltypes))) %>%
   #   pivot_wider(names_from = samples, values_from = predictions) %>%
   #   as.data.frame()
-  # rownames(xCell2_out) <- xCell2_out[,1]
-  # xCell2_out <- xCell2_out[,-1]
+
+  rownames(xCell2_out) <- xCell2_out[,1]
+  xCell2_out <- xCell2_out[,-1]
 
   return(xCell2_out)
 }

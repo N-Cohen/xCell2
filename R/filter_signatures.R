@@ -1,5 +1,5 @@
 
-filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff, score_method = "singscore"){
+filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff, score_method){
 
   # This function created mixtures for the simulations
   getMixtures <- function(ref, labels, ct, ct_data, dep_list, max_control_type,

@@ -1,14 +1,171 @@
 library(tidyverse)
 
-# xcell2_tumor_refsigs <- signatures_collection_filtered
-# saveRDS(xcell2_tumor_refsigs, "../xCell2.0/xcell2_tumor_refsigs_16_2_23_500genes_gubbs05.rds")
+source("R/xCell2.R")
+source("dev_scripts/run_cibersortx.R")
+xCell.data <- xCell::xCell.data
+celltype_conversion <- read_tsv("Data/celltype_conversion_with_ontology.txt")
+celltype_conversion_long <- celltype_conversion %>%
+  rowwise() %>%
+  mutate(all_labels = str_split(all_labels, ";")) %>%
+  unnest(cols = c(all_labels))
 
-# xcell2_blood_refsigs <- signatures_collection_filtered
-# saveRDS(xcell2_blood_refsigs, "../xCell2.0/xcell2_blood_refsigs_16_2_23_500genes_gubbs05.rds")
+getCorrelation <- function(results_mat, truth, cor_method = "spearman"){
 
-# xcell2_bp_refsigs <- signatures_collection_filtered
-# saveRDS(xcell2_bp_refsigs, "../xCell2.0/xcell2_bp_refsigs_16_2_23_500genes_gubbs05.rds")
+  samples2use <- intersect(colnames(truth), colnames(results_mat))
+  results_mat <- results_mat[,samples2use]
+  truth <- truth[,samples2use]
 
+  if (!all(colnames(truth) == colnames(results_mat))) {
+    errorCondition(paste0("Error with dataset: ", file))
+  }
+
+  celltypes2use <- intersect(rownames(truth), rownames(results_mat))
+
+  all_celltypes_cor <- sapply(celltypes2use, function(ctoi){
+
+    scores_ctoi <- results_mat[ctoi,]
+    truth_ctoi <- truth[ctoi, names(scores_ctoi)]
+    truth_ctoi <- truth_ctoi[which(!is.na(truth_ctoi))]
+    truth_ctoi <- truth_ctoi[which(truth_ctoi != "")]
+    scores_ctoi <- scores_ctoi[names(truth_ctoi)]
+
+    if (!all(names(truth_ctoi) == colnames(scores_ctoi))) {
+      errorCondition(paste0("Error with dataset: ", file))
+    }
+
+    if (all(as.numeric(truth_ctoi) == 0) | all(as.numeric(scores_ctoi) == 0)) {
+      NULL
+    }else{
+      cor(as.numeric(scores_ctoi), as.numeric(truth_ctoi), method = cor_method)
+    }
+  })
+
+  if (is.list(all_celltypes_cor)) {
+    all_celltypes_cor <- unlist(all_celltypes_cor)
+  }
+
+  out <- enframe(compact(all_celltypes_cor)) %>%
+    arrange(-value) %>%
+    rename(celltype = name , cor = value)
+
+  return(out)
+}
+
+
+# xcell2_blood_sigs <- xCell2Train(ref = ref, labels = labels, data_type = "rnaseq", ontology_file_checked = ontology_file_checked)
+# saveRDS(xcell2_blood_sigs, "/Users/almogang/Documents/xCell2.0/reference_data/xcell2_blood_sigs_simulations.rds")
+
+# Blood validation ----
+
+# Load signatures for xCell2.0 and signatures matrix for CIBERSORTx
+xcell2_blood_sigs <- readRDS("/Users/almogang/Documents/xCell2.0/reference_data/xcell2_blood_sigs_simulations.rds")
+cbrx_blood_sig_mat <- "/Users/almogang/Documents/xCell2.0/CIBERSORTx_docker/cibersortx_blood_ref.txt-sigmat/CIBERSORTx_cibersortx_blood_pheno_df.CIBERSORTx_cibersortx_blood_ref.bm.K999.txt"
+lm22 <- "/Users/almogang/Documents/xCell2.0/CIBERSORTx_docker/LM22.txt"
+
+# Load blood validation datasets
+blood_ds <- c("BG_blood", "GSE107011", "GSE107572", "GSE115823", "GSE127813", "GSE53655", "GSE60424")
+# "GSE64655", "sc_pbmc", "SDY67"
+
+# Run benchmarking
+blood_validation.list <- list()
+for (ds in blood_ds) {
+
+  print(paste0("Working on: ", ds))
+
+  # Load mixture and true fractions
+  mix_path <- paste0("/Users/almogang/Documents/xCell2.0/validation_data/expressions/", ds, "_expressions.tsv")
+  mix <- read.table(mix_path, check.names = FALSE, row.names = 1, header = TRUE)
+  truth <- read.table(paste0("/Users/almogang/Documents/xCell2.0/validation_data/cell_values/", ds, ".tsv"), header = TRUE, check.names = FALSE, sep = "\t", row.names = 1)
+  rownames(truth) <- plyr::mapvalues(rownames(truth), celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
+
+  # Run xCell2.0
+  xcell2.out <- xCell2Analysis(mix = mix, xcell2ref = xcell2_blood_sigs)
+  print("xCell2.0 - Done")
+
+  # Run xCell
+  xcell.out <- as.data.frame(xCell::xCellAnalysis(mix, rnaseq = TRUE))
+  rownames(xcell.out) <- plyr::mapvalues(rownames(xcell.out), celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
+  print("xCell - Done")
+
+  # Run CIBERSORTx - custom reference
+  cbrx_custom.out <- runCIBERSORTx(mix = mix_path, sig_mat = cbrx_blood_sig_mat, absolute = FALSE, rmbatchBmode = TRUE)
+  print("CIBERSORTx (custom reference) - Done")
+
+  # Run CIBERSORTx - LM22
+  cbrx_lm22.out <- runCIBERSORTx(mix = mix_path, sig_mat = lm22, absolute = FALSE, rmbatchBmode = TRUE)
+  # Add broad cell types to LM22
+  rownames(cbrx_lm22.out) <- plyr::mapvalues(rownames(cbrx_lm22.out), celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)
+  tmp <- t(data.frame("B-cells" = colSums(cbrx_lm22.out[c("naive B-cells", "Memory B-cells", "Plasma cells"),]),
+            "CD4+ T-cells" = colSums(cbrx_lm22.out[c("CD4+ naive T-cells", "T cells CD4 memory resting", "CD4+ memory T-cells"),]),
+            "Macrophages" = colSums(cbrx_lm22.out[c("Macrophages M0", "Macrophages M1", "Macrophages M2"),]),
+            "T-cells" = colSums(cbrx_lm22.out[c("CD8+ T-cells", "CD4+ naive T-cells", "T cells CD4 memory resting", "CD4+ memory T-cells",
+                                                        "Follicular T-helper", "Tregs", "Tgd cells"),]), check.names = FALSE))
+  cbrx_lm22.out <- rbind(cbrx_lm22.out, tmp)
+  print("CIBERSORTx (LM22) - Done")
+
+
+  # Calculate Correlations
+  xcell2.cor <- getCorrelation(results_mat = xcell2.out, truth = truth, cor_method = "spearman") %>%
+    mutate(method = "xCell2.0 - Kassandra's Blood")
+  xcell.cor <- getCorrelation(results_mat = xcell.out, truth = truth, cor_method = "spearman") %>%
+    mutate(method = "xCell")
+  cbrx_custom.cor <- getCorrelation(results_mat = cbrx_custom.out, truth = truth, cor_method = "spearman") %>%
+    mutate(method = "CIBERSORTx - Kassandra's Blood")
+  cbrx_lm22.cor <- getCorrelation(results_mat = cbrx_lm22.out, truth = truth, cor_method = "spearman") %>%
+    mutate(method = "CIBERSORTx - LM22")
+
+  blood_validation.list[[ds]] <- rbind(xcell2.cor, xcell.cor, cbrx_custom.cor, cbrx_lm22.cor)
+
+}
+
+# Plot ----
+
+lapply(blood_validation.list, function(x) unique(pull(x, celltype)))
+blood_validation.list.sub <- blood_validation.list[!names(blood_validation.list) %in% c("GSE53655", "GSE60424", "GSE115823")]
+
+
+blood_validation.tbl <- enframe(blood_validation.list.sub) %>%
+  unnest(cols = c(value)) %>%
+  rename(dataset = name)
+
+
+ct2plot <- c("Monocytes", "Neutrophils", "NK cells", "cDC", "T-cells", "Tregs",
+             "Memory T-helpers", "CD4+ T-cells", "CD8+ T-cells", "B-cells",
+             "Fibroblasts", "Lymphocytes", "Cancer cells", "CD8+ T-cells PD1 low", "CD8+ T-cells PD1 high",
+             "Macrophages", "Macrophages M1", "Macrophages M2", "Endothelial cells", "Non plasma B-cells")
+
+ct2plot <- Reduce(intersect, lapply(blood_validation.list.sub, function(x) pull(x, celltype)))
+
+
+blood_validation.tbl %>%
+  filter(celltype %in% ct2plot) %>%
+  mutate(is_xcell2 = ifelse(startsWith(method, "xCell2.0"), "yes", "no")) %>%
+  ggplot(., aes(x=method, y= cor)) +
+  geom_boxplot(aes(fill=is_xcell2), position = position_dodge(1), outlier.shape = NA,  alpha = 0.5) +
+  geom_jitter(aes(col=celltype), size=4, position = position_jitterdodge(jitter.width = .1, dodge.width = .5)) +
+  scale_y_continuous(limits = c(-1, 1), breaks = seq(-1,1,0.1), labels = as.character(seq(-1,1,0.1))) +
+  scale_color_manual(values=c(RColorBrewer::brewer.pal(11, "Paired")[c(2,4,6,8,10,12)],
+                              "#424242", "#8B1C62", "#00F5FF", "#FF3E96")) +
+                                scale_fill_manual( values = c("yes"="tomato", "no"="gray"), guide = FALSE) +  theme_linedraw() +
+  theme(plot.title = element_text(size=22, hjust = 0.5, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major = element_line(colour = "#1A1A1A", linetype = "dashed"),
+        panel.grid.minor = element_line(colour = "white"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(size = 10, angle = 30, hjust=1),
+        axis.text.y = element_text(size = 12, hjust=1, face = "bold"),
+        legend.title = element_text(size = 12, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key = element_rect(fill = NA),
+        legend.background = element_rect(fill = NA)) +
+  labs(y = "Spearman r (median)", title = "BG_blood Validation Dataset", x = NULL, colour = NULL, fill = NULL) +
+  facet_wrap(~dataset, scales = "free")
+
+
+
+
+
+# old -------------------------------------------
 
 blood_ds <- c("BG_blood", "GSE107011", "GSE107572", "GSE115823", "GSE127813", "GSE53655", "GSE60424", "GSE64655", "sc_pbmc", "SDY67")
 #blood_ref <- c("EPIC_BRef", "LM22_matrix_with_BC_CIBERSORTX.tsv", "Scaden_PBMC", "xCell2.0 - Blood")
