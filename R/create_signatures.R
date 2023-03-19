@@ -1,5 +1,5 @@
 
-createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes){
+createSignatures <- function(ref, labels, dep_list, quantiles_matrix, probs, cor_mat, diff_vals, min_genes, max_genes){
 
   celltypes <- unique(labels[,2])
   samples <- labels[,2]
@@ -40,7 +40,7 @@ createSignatures <- function(counts, labels, dep_list, quantiles_matrix, probs, 
         })
 
         diff_genes.mat <- matrix(unlist(diff_genes), nrow = length(diff_genes), byrow = TRUE,
-                                 dimnames = list(not_dep_celltypes, rownames(counts)))
+                                 dimnames = list(not_dep_celltypes, rownames(ref)))
 
 
         # Find signature genes for similar cell types

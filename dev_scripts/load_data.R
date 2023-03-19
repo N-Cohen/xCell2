@@ -9,7 +9,32 @@ celltype_conversion_long <- celltype_conversion %>%
 
 
 ### Single-cell RNA-seq references ---------------------------------------
-## Human ---------------------------------------
+library(Seurat)
+
+## Human (Tabula Sapiens)---------------------------------------
+
+
+
+ts <- readRDS("/bigdata/almogangel/TabulaSapiens/tabula_sapiens.rds")
+ts@assays$RNA@key <- "rna_"
+
+# Use only 10X data
+ts <- subset(x = ts, subset = assay == "10x 3' v3")
+
+ts_labels <- tibble(ont = ts@meta.data$cell_type_ontology_term_id, label = ts@meta.data$cell_type,
+                    sample = rownames(ts@meta.data), dataset = ts@meta.data$donor)
+ts_ref <- ts@assays$RNA@counts
+
+
+ref <- ts_ref
+labels <- as.data.frame(ts_labels)
+labels$ont <- as.character(labels$ont)
+labels$label <- as.character(labels$label)
+
+xCell2GetLineage(labels = labels[,1:2], out_file = "Data/ts_human_dependencies.tsv")
+
+View(read.table("Data/ts_human_dependencies.tsv", sep = "\t", header = TRUE))
+ontology_file_checked <- "Data/ts_human_dependencies.tsv"
 
 
 ###  Bulk RNA-seq sorted cells references ---------------------------------------

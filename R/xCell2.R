@@ -75,7 +75,7 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
 
 
   # Validate inputs
-  if (!"matrix" %in% class(ref)) {
+  if (!class(ref) %in% c("matrix", "dgCMatrix", "Matrix")) {
     stop("ref should be as matrix!")
   }
 
