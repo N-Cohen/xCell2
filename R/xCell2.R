@@ -8,8 +8,8 @@
 
 # USAGE:
 # labels - a data frame with rows correspond to samples in ref:
-#   (1) first column for cell type onthology
-#   (2) second column for cell type name (charaters)
+#   (1) first column for cell type onthology - named "ont"
+#   (2) second column for cell type name - named "label
 
 # DEPENDENCIES:
 # tidyverse, ontoProc, ontologyIndex
@@ -65,17 +65,17 @@ xCell2GetLineage <- function(labels, out_file){
 if (1 == 0) {
   data_type = "rnaseq";  score_method = "singscore"; mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02))
   probs = c(.1, .25, .33333333, .5); diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
-  min_genes = 5; max_genes = 500; is_10x = TRUE
+  min_genes = 5; max_genes = 500; is_10x = FALSE
 }
 
 
 xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02)),
                         probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
-                        min_genes = 5, max_genes = 500, is_10x = TRUE){
+                        min_genes = 5, max_genes = 500, is_10x = FALSE){
 
 
   # Validate inputs
-  if (!class(ref) %in% c("matrix", "dgCMatrix", "Matrix")) {
+  if (!any(class(ref) %in% c("matrix", "dgCMatrix", "Matrix"))) {
     stop("ref should be as matrix!")
   }
 

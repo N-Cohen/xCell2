@@ -135,7 +135,7 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
     drop_na()
 
   # Filter by simulations
-  simulations <- blood_labels %>%
+  simulations <- labels %>%
     group_by(ont, label) %>%
     nest() %>%
     rowwise() %>%

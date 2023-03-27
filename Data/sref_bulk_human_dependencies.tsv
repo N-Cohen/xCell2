@@ -1,0 +1,63 @@
+ont	label	descendants	ancestors
+CL:0000115	endothelial cell		
+CL:0000057	fibroblast	"preadipocyte, hepatic stellate cell, pancreatic stellate cell"	
+CL:0000182	hepatocyte		
+CL:0000187	muscle cell		
+CL:0002632	epithelial cell	club cell	
+CL:0000034	stem cell		
+CL:0000223	endodermal cell		
+CL:0000171	pancreatic A cell		
+CL:0000169	type B pancreatic cell		
+CL:0000084	T cell	"CD4-positive, alpha-beta T cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell"	"lymphocyte, leukocyte"
+CL:0000236	B cell		"lymphocyte, leukocyte"
+CL:0000501	granulosa cell		
+CL:0000540	neuron		
+CL:0000542	lymphocyte	"T cell, B cell, CD4-positive, alpha-beta T cell, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell"	leukocyte
+CL:0000362	epidermal cell		
+CL:0000094	granulocyte	"neutrophil, eosinophil, basophil"	"leukocyte, myeloid cell"
+CL:0000576	monocyte		"leukocyte, myeloid cell"
+CL:0000624	"CD4-positive, alpha-beta T cell"		"T cell, lymphocyte, leukocyte"
+CL:0000765	erythroblast		myeloid cell
+CL:0000235	macrophage	microglial cell	"leukocyte, myeloid cell"
+CL:0000062	osteoblast		
+CL:0000136	fat cell		
+CL:0000125	glial cell	microglial cell	
+CL:0000547	proerythroblast		myeloid cell
+CL:0000451	dendritic cell		leukocyte
+CL:0000775	neutrophil		"granulocyte, leukocyte, myeloid cell"
+CL:0000138	chondrocyte		
+CL:0000077	mesothelial cell	Sertoli cell	
+CL:0002334	preadipocyte		fibroblast
+CL:0000623	natural killer cell		"lymphocyte, leukocyte"
+CL:0000625	"CD8-positive, alpha-beta T cell"		"T cell, lymphocyte, leukocyte"
+CL:0000738	leukocyte	"T cell, B cell, lymphocyte, granulocyte, monocyte, CD4-positive, alpha-beta T cell, macrophage, dendritic cell, neutrophil, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, microglial cell, helper T cell, exhausted T cell, gamma-delta T cell, mast cell, eosinophil, cytotoxic T cell, basophil"	
+CL:0000815	regulatory T cell		"T cell, lymphocyte, leukocyte"
+CL:0000351	trophoblast cell		
+CL:0011012	neural crest cell		stem cell
+CL:0000232	erythrocyte		myeloid cell
+CL:0000023	oocyte		
+CL:0002079	pancreatic ductal cell		
+CL:0000216	Sertoli cell		mesothelial cell
+CL:0000669	pericyte cell	mesangial cell	
+CL:0002633	respiratory basal cell		stem cell
+CL:0000632	hepatic stellate cell		fibroblast
+CL:0000650	mesangial cell		pericyte cell
+CL:0000214	synovial cell		
+CL:1000488	cholangiocyte		
+CL:0000129	microglial cell		"macrophage, glial cell, leukocyte, myeloid cell"
+CL:0000912	helper T cell		"T cell, lymphocyte, leukocyte"
+CL:0002193	myelocyte		myeloid cell
+CL:0000835	myeloblast		myeloid cell
+CL:0000185	myoepithelial cell		
+CL:0002410	pancreatic stellate cell		fibroblast
+CL:0011025	exhausted T cell		"T cell, lymphocyte, leukocyte"
+CL:0000798	gamma-delta T cell		"T cell, lymphocyte, leukocyte"
+CL:0000097	mast cell		"leukocyte, myeloid cell"
+CL:0000771	eosinophil		"granulocyte, leukocyte, myeloid cell"
+CL:0000556	megakaryocyte		myeloid cell
+CL:0000910	cytotoxic T cell		"T cell, lymphocyte, leukocyte"
+CL:0000158	club cell		epithelial cell
+CL:0000767	basophil		"granulocyte, leukocyte, myeloid cell"
+CL:0000584	enterocyte		
+CL:0000763	myeloid cell	"granulocyte, monocyte, erythroblast, macrophage, proerythroblast, neutrophil, erythrocyte, microglial cell, myelocyte, myeloblast, mast cell, eosinophil, megakaryocyte, basophil"	
+CL:0001064	malignant cell		

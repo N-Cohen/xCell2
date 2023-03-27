@@ -48,7 +48,7 @@ makePureCTMat <- function(ref, labels){
     if (sum(type_samples) == 1) {
       type_vec <- as.vector(ref[,type_samples])
     }else{
-      type_vec <- if(class(ref) == "matrix") Rfast::rowMedians(ref[,type_samples]) else sparseMatrixStats::rowMedians(ref[,type_samples])
+      type_vec <- if("matrix" %in% class(ref)) Rfast::rowMedians(ref[,type_samples]) else sparseMatrixStats::rowMedians(ref[,type_samples])
     }
   })
   rownames(pure_ct_mat) <- rownames(ref)
