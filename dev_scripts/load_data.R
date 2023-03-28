@@ -6,7 +6,6 @@ celltype_conversion_long <- read_tsv("Data/celltype_conversion_with_ontology.txt
   mutate(all_labels = str_split(all_labels, ";")) %>%
   unnest(cols = c(all_labels))
 
-head()
 
 ######################## Single-cell RNA-seq references ---------------------------------------
 
@@ -146,13 +145,13 @@ labels <- as.data.frame(bp_labels)
 
 
 
-# Super reference
+# Super reference -----
 sref <- readRDS("/bigdata/almogangel/super_ref_for_xcell2/human_bulk_ref.rds")
 
 # Use main labels
 sref_labels_main <- sref@labels[,c(1,2,5,6)]
 colnames(sref_labels_main)[1:2] <- c("ont", "label")
-xCell2GetLineage(sref_labels_main[,1:2], out_file = "/home/almogangel/xCell2_git/Data/sref_bulk_human_dependencies.tsv")
+#xCell2GetLineage(sref_labels_main[,1:2], out_file = "/home/almogangel/xCell2_git/Data/sref_bulk_human_dependencies.tsv")
 
 ontology_file_checked <- "Data/sref_bulk_human_dependencies_checked.tsv"
 
