@@ -1,18 +1,16 @@
 library(tidyverse)
 source("R/xCell2.R")
 
-celltype_conversion <- read_tsv("Data/celltype_conversion_with_ontology.txt")
-celltype_conversion_long <- celltype_conversion %>%
+celltype_conversion_long <- read_tsv("Data/celltype_conversion_with_ontology.txt") %>%
   rowwise() %>%
   mutate(all_labels = str_split(all_labels, ";")) %>%
   unnest(cols = c(all_labels))
 
+head()
 
-### Single-cell RNA-seq references ---------------------------------------
-library(Seurat)
+######################## Single-cell RNA-seq references ---------------------------------------
 
-## Human (Tabula Sapiens)---------------------------------------
-
+############# Human (Tabula Sapiens)---------------------------------------
 
 
 ts <- readRDS("/bigdata/almogangel/TabulaSapiens/tabula_sapiens.rds")
@@ -37,34 +35,43 @@ View(read.table("Data/ts_human_dependencies.tsv", sep = "\t", header = TRUE))
 ontology_file_checked <- "Data/ts_human_dependencies.tsv"
 
 
-###  Bulk RNA-seq sorted cells references ---------------------------------------
-all_models_expr <- read_csv("../xCell2.0/Kassandara_data/all_models_expr.tsv")
+########################  Bulk RNA-seq sorted cells references ---------------------------------------
+############# Human ---------------------------------------
+# Tumor ref (Kassandra) ----
+# all_models_expr <- read_csv("../xCell2.0/Kassandara_data/all_models_expr.tsv")
+all_models_expr <- read_csv("/bigdata/almogangel/kassandra_data/sorted_cells/all_models_expr.tsv")
 all_models_expr <- data.frame(all_models_expr[,-1], row.names = all_models_expr$Gene, check.names = F)
-all_models_annot <- read_csv("../xCell2.0/Kassandara_data/all_models_annot.tsv")
+# all_models_annot <- read_csv("../xCell2.0/Kassandara_data/all_models_annot.tsv")
+all_models_annot <- read_csv("/bigdata/almogangel/kassandra_data/sorted_cells/all_models_annot.tsv")
 colnames(all_models_annot)[1] <- "Sample"
 all(colnames(all_models_expr) == all_models_annot$Sample)
 
-# TODO: Add sample and dataset columns to tumor, blood and BP !!!
 
-## Human ---------------------------------------
-# Tumor ref ----
 tumor_ref <- all_models_expr[,!is.na(all_models_annot$Tumor_model_annot)]
 tumor_labels <- all_models_annot[!is.na(all_models_annot$Tumor_model_annot),]
 
 tumor_labels <- tumor_labels %>%
   mutate(label = plyr::mapvalues(Tumor_model_annot, celltype_conversion_long$all_labels, celltype_conversion_long$xCell2_labels, warn_missing = FALSE)) %>%
   mutate(ont = plyr::mapvalues(label, celltype_conversion_long$xCell2_labels, celltype_conversion_long$ont, warn_missing = FALSE)) %>%
-  dplyr::select(ont, label)
+  dplyr::select(ont, label, sample = Sample, dataset = Dataset)
 
 
-ontology_file_checked <- "../xCell2.0/kass_tumor_dependencies_checked.tsv"
+ontology_file_checked <- "Data/kass_tumor_dependencies_checked.tsv"
 
 ref <- as.matrix(tumor_ref)
 labels <- as.data.frame(tumor_labels)
 dim(ref)
 dim(labels)
 
-# Blood ref  ----
+# Blood ref (Kassandra) ----
+# all_models_expr <- read_csv("../xCell2.0/Kassandara_data/all_models_expr.tsv")
+all_models_expr <- read_csv("/bigdata/almogangel/kassandra_data/sorted_cells/all_models_expr.tsv")
+all_models_expr <- data.frame(all_models_expr[,-1], row.names = all_models_expr$Gene, check.names = F)
+# all_models_annot <- read_csv("../xCell2.0/Kassandara_data/all_models_annot.tsv")
+all_models_annot <- read_csv("/bigdata/almogangel/kassandra_data/sorted_cells/all_models_annot.tsv")
+colnames(all_models_annot)[1] <- "Sample"
+all(colnames(all_models_expr) == all_models_annot$Sample)
+
 blood_ref <- all_models_expr[,!is.na(all_models_annot$Blood_model_annot)]
 blood_labels <- all_models_annot[!is.na(all_models_annot$Blood_model_annot),]
 all(colnames(blood_ref) == blood_labels[!is.na(blood_labels$Blood_model_annot),]$Sample)
@@ -77,7 +84,7 @@ blood_labels <- blood_labels %>%
 # Add lab data
 laboratory_data_expressions <- read_tsv("../xCell2.0/Kassandara_data/laboratory_data_expressions.tsv")
 laboratory_data_expressions <- data.frame(laboratory_data_expressions[,-1], row.names = laboratory_data_expressions$Gene, check.names = F)
-laboratory_data_annotation <- read_tsv("../xCell2.0/Kassandara_data/laboratory_data_annotation.tsv")
+laboratory_data_annotation <- read_tsv("/bigdata/almogangel/kassandra_data/sorted_cells/laboratory_data_annotation.tsv")
 colnames(laboratory_data_annotation)[1] <- "Sample"
 all(colnames(laboratory_data_expressions) == laboratory_data_annotation$Sample)
 laboratory_data_expressions <- laboratory_data_expressions[,laboratory_data_annotation$Sample]
@@ -139,8 +146,25 @@ labels <- as.data.frame(bp_labels)
 
 
 
-### Microarry sorted cells references ---------------------------------------
-## Human ---------------------------------------
+# Super reference
+sref <- readRDS("/bigdata/almogangel/super_ref_for_xcell2/human_bulk_ref.rds")
+
+# Use main labels
+sref_labels_main <- sref@labels[,c(1,2,5,6)]
+colnames(sref_labels_main)[1:2] <- c("ont", "label")
+xCell2GetLineage(sref_labels_main[,1:2], out_file = "/home/almogangel/xCell2_git/Data/sref_bulk_human_dependencies.tsv")
+
+ontology_file_checked <- "Data/sref_bulk_human_dependencies_checked.tsv"
+
+ref <- sref@data
+labels <- sref_labels_main
+dim(ref)
+dim(labels)
+
+
+
+######################## Microarry sorted cells references ---------------------------------------
+############# Human ---------------------------------------
 # LM222 -----------
 
 lm22_ref <- read.table("../xCell2.0/LM22_source_GEPs.txt", header = TRUE, check.names = FALSE, row.names = 1, sep = "\t")
