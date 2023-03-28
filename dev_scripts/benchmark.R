@@ -1,3 +1,7 @@
+###############################################################################
+# This script run xCell, xCell2 and CIBERSORTx with the same reference
+###############################################################################
+
 library(tidyverse)
 
 source("R/xCell2.R")
