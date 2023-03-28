@@ -63,13 +63,13 @@ xCell2GetLineage <- function(labels, out_file){
 
 # Remove
 if (1 == 0) {
-  data_type = "rnaseq";  score_method = "singscore"; mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02))
+  data_type = "rnaseq"; mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02))
   probs = c(.1, .25, .33333333, .5); diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5)
   min_genes = 5; max_genes = 500; is_10x = FALSE
 }
 
 
-xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_method = "singscore", mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02)),
+xCell2Train <- function(ref, labels, ontology_file_checked, data_type, mixture_fractions = c(0.001, 0.005, seq(0.01, 0.25, 0.02)),
                         probs = c(.1, .25, .33333333, .5), diff_vals = c(0, 0.1, 0.585, 1, 1.585, 2, 3, 4, 5),
                         min_genes = 5, max_genes = 500, is_10x = FALSE){
 
@@ -122,7 +122,7 @@ xCell2Train <- function(ref, labels, ontology_file_checked, data_type, score_met
   source("R/filter_signatures.R")
   # Filter signatures
   message("Filtering signatures...")
-  filter_signature_out <- filterSignatures(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff = 0.8, score_method = "singscore")
+  filter_signature_out <- filterSignatures(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff = 0.8, simulations_cutoff = 0.8)
   scores_mat_pure_tidy <- filter_signature_out$scoreMatTidy
   signatures_collection_filtered <- filter_signature_out$sigCollectionFilt
   # plotHeatMap("Neutrophils", scores_mat_pure_tidy, signatures_collection_filtered = NULL, cor_mat)

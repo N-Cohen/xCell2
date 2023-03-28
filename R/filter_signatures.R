@@ -1,5 +1,5 @@
 
-filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff, score_method){
+filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_collection, mixture_fractions, grubbs_cutoff, simulations_cutoff){
 
   # This function created mixtures for the simulations
   getMixtures <- function(ref, labels, ct, ct_data, dep_list, max_control_type,
@@ -45,16 +45,22 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
 
     }
 
+    print(ct) #remove
+
     ct_data %>%
       group_by(dataset) %>%
       summarise(samples = list(sample)) %>%
       rowwise() %>%
-      mutate(ct_mean_expression = list(Rfast::rowmeans(as.matrix(ref[,samples])))) %>%
+      mutate(n_samples = length(samples)) %>%
+      ungroup() %>%
+      # Use top 20 references with most samples
+      top_n(n = 20, wt = n_samples) %>%
       rowwise() %>%
+      # Get cell type mean expression for each dataset
+      mutate(ct_mean_expression = list(Rfast::rowmeans(as.matrix(ref[,samples])))) %>%
       mutate(mixtures = list(mixSmaples(ref, labels, ct, dep_list, max_control_type, ct_mean_expression, mixture_fractions))) %>%
       pull(mixtures) %>%
       return()
-
   }
 
 
@@ -111,20 +117,14 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
       types_to_use <- rep(TRUE, ncol(scores_mat))
     }
 
-    if (score_method == "ssgsea") {
-      ssgsea_out <- GSVA::gsva(pure_ct_mat[, types_to_use], signatures_collection[type == sig_type], method = "ssgsea", ssgsea.norm = FALSE, verbose = FALSE)
-      scores_mat[rownames(ssgsea_out), colnames(ssgsea_out)] <- ssgsea_out
-
-    }else if(score_method == "singscore"){
-      sub_mix <- pure_ct_mat[,types_to_use]
-      sub_mix_ranked <- singscore::rankGenes(sub_mix)
-      for (i in 1:length(type_signatures)) {
-        sig <- type_signatures[i]
-        scores_out <- singscore::simpleScore(sub_mix_ranked, upSet = sig[[1]], centerScore = FALSE)$TotalScore
-        scores_mat[which(rownames(scores_mat) == names(sig)),
-                   colnames(sub_mix_ranked)] <- scores_out
-      }
+    sub_mix <- pure_ct_mat[,types_to_use]
+    sub_mix_ranked <- singscore::rankGenes(sub_mix)
+    for (i in 1:length(type_signatures)) {
+      sig <- type_signatures[i]
+      scores_out <- singscore::simpleScore(sub_mix_ranked, upSet = sig[[1]], centerScore = FALSE)$TotalScore
+      scores_mat[which(rownames(scores_mat) == names(sig)), colnames(sub_mix_ranked)] <- scores_out
     }
+
   }
 
   scores_mat_tidy <- scores_mat %>%
@@ -146,7 +146,7 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
     mutate(mixture_cor = list(getMixturesCors(signatures_collection = signatures_collection, ct = label, mixture_ranked = mixture_ranked, mixture_fractions = mixture_fractions)))
 
   simulations.filtered <- simulations.cors %>%
-    mutate(sig_filtered = list(names(mixture_cor)[mixture_cor >= quantile(mixture_cor, 0.8)])) %>%
+    mutate(sig_filtered = list(names(mixture_cor)[mixture_cor >= quantile(mixture_cor, simulations_cutoff)])) %>%
     pull(sig_filtered) %>%
     unlist()
 
