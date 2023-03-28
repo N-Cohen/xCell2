@@ -6,7 +6,6 @@ celltype_conversion_long <- read_tsv("Data/celltype_conversion_with_ontology.txt
   mutate(all_labels = str_split(all_labels, ";")) %>%
   unnest(cols = c(all_labels))
 
-head()
 
 ######################## Single-cell RNA-seq references ---------------------------------------
 
