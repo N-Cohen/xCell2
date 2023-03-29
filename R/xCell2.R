@@ -1,6 +1,6 @@
 # Main functions for xCell2
 
-# TODO:
+setwd(dir = "/home/almogangel/xCell2_git/")
 
 #########################################################################################
 # Generate cell-type lineage automatically

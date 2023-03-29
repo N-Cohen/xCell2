@@ -2,35 +2,27 @@
 # This script run xCell and xCell2 and load Kassandra's benchmarking results
 ###############################################################################
 
+# Input - xCell2.0 signatures RDS
+# xcell2_sigs <- xCell2Ref.S4
+# saveRDS(xcell2_sigs, "/home/almogangel/xCell2_git/Data/benchmarking_data/xcell2ref_sref_main.rds")
+xcell2_sigs <- readRDS("/home/almogangel/xCell2_git/Data/benchmarking_data/xcell2ref_sref_main.rds")
+outfile <- "/home/almogangel/xCell2_git/Data/benchmarking_data/kass_benchmarking_cors_sref_20ds_simulations.rds"
+
 library(tidyverse)
-source("R/xCell2.R")
+source("/home/almogangel/xCell2_git/R/xCell2.R")
 xCell.data <- xCell::xCell.data
-cl <- ontoProc::getCellOnto()
-
-# outfile <- "cors.out.list_500genes_grubbs03_more_cts_grubbs05.rds"
-
-# Save xCell2.0 signatures
-xcell2_sigs <- xCell2Ref.S4
-# (xcell2_sigs)
-xcell2_sigs <- readRDS()
-
 
 
 # Load celltype conversion
-celltype_conversion_long <- read_tsv("Data/celltype_conversion_with_ontology.txt") %>%
+celltype_conversion_long <- read_tsv("/home/almogangel/xCell2_git/Data/celltype_conversion_with_ontology.txt") %>%
   rowwise() %>%
   mutate(all_labels = str_split(all_labels, ";")) %>%
   unnest(cols = c(all_labels))
-
-celltype_conversion_long <- celltype_conversion_long %>%
-  rowwise() %>%
-  mutate(xCell2_labels = ifelse(is.na(unname(cl$name[ont])), xCell2_labels, unname(cl$name[ont])))
 
 
 # Load benchmarking truths and mixtures
 truths_dir <- "/bigdata/almogangel/kassandra_data/24_validation_datasets/cell_values/"
 mix_dir <- "/bigdata/almogangel/kassandra_data/24_validation_datasets/expressions/"
-"/bigdata/almogangel/kassandra_data/BG_blood/"
 ds <- gsub(".tsv", "", list.files(truths_dir))
 
 
@@ -120,11 +112,11 @@ getCorrelations <- function(dataset){
   # shared_celltypes <- Reduce(intersect, lapply(all.out, rownames))
   # sort(table(unlist(lapply(all.out, rownames))), decreasing = T)
   # shared_celltypes <- unique(c(shared_celltypes, celltypes2add))
-  shared_celltypes <- unique(unlist(lapply(all.out, rownames)))
+  #shared_celltypes <- unique(unlist(lapply(all.out, rownames)))
 
 
-  all.out <- lapply(all.out, function(x){x[shared_celltypes, shared_samples]})
-  all.out <- lapply(all.out, function(x){cbind(celltype = shared_celltypes, x)})
+  all.out <- lapply(all.out, function(x){x[, shared_samples]})
+  all.out <- lapply(all.out, function(x){cbind(celltype = rownames(x), x)})
   all.out <- lapply(all.out, function(x){drop_na(x)})
   all.out <- lapply(all.out, function(x){x[rowSums(x != 0) > 3,]}) # Minimum 3 values for cell type
 
@@ -142,7 +134,6 @@ getCorrelations <- function(dataset){
     mutate(dataset = dataset)
 
   return(cors.out)
-
 }
 
 
@@ -150,15 +141,17 @@ getCorrelations <- function(dataset){
 cors.out.list <- vector("list", length(ds))
 names(cors.out.list) <- ds
 
-# TODO: fix ds
-ds <- ds[3:length(ds)]
 
 for (d in ds) {
 
+  # print(paste0(d, " --------------------------------------------------------- "))
+  # cors.out <- getCorrelations(dataset = d) %>%
+  #   mutate(dataset = d)
+  # cors.out.list[[d]] <- cors.out
+
   print(paste0(d, " --------------------------------------------------------- "))
-  cors.out <- getCorrelations(dataset = d) %>%
-    mutate(dataset = d)
-  cors.out.list[[d]] <- cors.out
+  cors.out.list[[d]] <- getCorrelations(dataset = d)
+
 
 }
 

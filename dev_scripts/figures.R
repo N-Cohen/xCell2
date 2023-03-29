@@ -1,11 +1,54 @@
-# Figures for ILANIT 2023
 
 library(tidyverse)
 library(Rtsne)
 
-c("xCell2.0 - Blood", "xCell2.0 - Tumor", "xCell2.0 - BlueprintEncode", "xCell", "Kassandara", "ABIS", "EPIC-BRef", "EPIC-TRef", "FARDEEP-Abs", "FARDEEP-Rel",
-  "CIBERSORTx-HNSC", "CIBERSORTx-LM22", "quanTIseq", "quanTIseq-T", "Scaden")
+# New -------
+all_cors.out <- bind_rows(all_cors.out)
 
+ct2use <- names(sort(table(all_cors.out$celltype), decreasing = TRUE))[1:18]
+ct2use <- ct2use[!ct2use %in% c("Other", "Non plasma B-cells")]
+
+median_cors <- all_cors.out %>%
+  filter(celltype %in% ct2use) %>%
+  # filter(ds_type == "Blood datasets" & !method %in% c("Kassandara", "quanTIseq", "quanTIseq-T")) %>%
+  filter(cor_method == "Spearman") %>%
+  dplyr::select(method, celltype, cor_score) %>%
+  group_by(method, celltype) %>%
+  summarise(median_cor = median(cor_score, na.rm = T))
+
+df <- pivot_wider(median_cors, names_from = method, values_from = median_cor)
+df <- data.frame(df[,-1], row.names = df$celltype, check.names = FALSE)
+df[df < 0] <- NA
+methods_sorted <- names(sort(apply(df, 2, function(x){median(x, na.rm = T)}), decreasing = F))
+
+median_cors$method <- factor(median_cors$method, levels = methods_sorted)
+
+median_cors %>%
+  mutate(is_xcell2 = ifelse(method %in% c("xCell2.0"), "yes", "no")) %>%
+  ggplot(., aes(x=method, y=median_cor)) +
+  geom_boxplot(aes(fill=is_xcell2), position = position_dodge(1), outlier.shape = NA,  alpha = 0.5) +
+  geom_jitter(aes(col=celltype), size=3, position = position_jitterdodge(jitter.width = .1, dodge.width = .5)) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.1), labels = as.character(seq(0,1,0.1))) +
+  scale_color_manual(values=c(RColorBrewer::brewer.pal(11, "Paired")[c(1,3,5,6,4,9,2,8,9,11)],
+                              "#424242", "#FFE7BA", "#8B1C62", "#CDC9C9", "#00F5FF", "#FF3E96")) +
+  scale_fill_manual( values = c("yes"="tomato", "no"="gray"), guide = FALSE) +
+  coord_flip() +
+  theme_linedraw() +
+  theme(plot.title = element_text(size=22, hjust = 0.5, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major = element_line(colour = "#1A1A1A", linetype = "dashed"),
+        panel.grid.minor = element_line(colour = "white"),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12, angle = 10, hjust=1, face = "bold"),
+        legend.title = element_text(size = 12, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key = element_rect(fill = NA),
+        legend.background = element_rect(fill = NA)) +
+  labs(y = "Spearman r (median)", title = "All Validation Datasets", x = NULL, colour = NULL, fill = NULL)
+
+
+# ILANIT 2023 ----
 # tSNE for reference datasets ----
 
 # BP ref
@@ -293,6 +336,9 @@ cd8pd1.df %>%
 # colors <- c(RColorBrewer::brewer.pal(11, "RdBu")[1:4], RColorBrewer::brewer.pal(10, "RdBu")[5:9], "black")
 # corrplot::corrplot(median_cors.mat, method = 'circle', col.lim = c(0, 1),  col=colors, is.corr = FALSE)
 #
+
+ all_cors.out <- readRDS("/home/almogangel/xCell2_git/Data/benchmarking_data/kass_benchmarking_cors_sref_20ds_simulations.rds")
+
 
 # B val
 median_cors <- all_cors.out %>%

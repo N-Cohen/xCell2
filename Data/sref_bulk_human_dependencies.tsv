@@ -1,63 +1,195 @@
 ont	label	descendants	ancestors
-CL:0000115	endothelial cell		
-CL:0000057	fibroblast	"preadipocyte, hepatic stellate cell, pancreatic stellate cell"	
+CL:0000115	endothelial cell	endothelial cell of hepatic sinusoid, microvascular endothelial cell, endothelial cell of lymphatic vessel, pulmonary artery endothelial cell, endothelial cell of vascular tree, glomerular endothelial cell, aortic endothelial cell, endocardial cell, brain microvascular endothelial cell, endothelial cell of artery, lung endothelial cell, bladder microvascular endothelial cell, adipose microvascular endothelial cell	
+CL:0000057	fibroblast	preadipocyte, hepatic stellate cell, pancreatic stellate cell, foreskin fibroblast, skin fibroblast, fibroblast of arm, fibroblast of dermis, cardiac ventricle fibroblast, bronchus fibroblast of lung, pericardium fibroblast, fibroblast of cardiac tissue, brown preadipocyte, subcutaneous preadipocyte	
 CL:0000182	hepatocyte		
-CL:0000187	muscle cell		
-CL:0002632	epithelial cell	club cell	
-CL:0000034	stem cell		
+CL:0000187	muscle cell	smooth muscle cell, cardiac muscle cell, myotube, myometrial cell, vascular associated smooth muscle cell, aortic smooth muscle cell, bronchial smooth muscle cell	
+CL:0002632	epithelial cell	club cell, bronchial epithelial cell	respiratory epithelial cell
+CL:0000034	stem cell	neural crest cell, respiratory basal cell, embryonic stem cell, mesenchymal stem cell, cord blood hematopoietic stem cell, hematopoietic stem cell	
 CL:0000223	endodermal cell		
 CL:0000171	pancreatic A cell		
 CL:0000169	type B pancreatic cell		
-CL:0000084	T cell	"CD4-positive, alpha-beta T cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell"	"lymphocyte, leukocyte"
-CL:0000236	B cell		"lymphocyte, leukocyte"
+CL:0000084	T cell	CD4-positive, alpha-beta T cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell, naive thymus-derived CD4-positive, alpha-beta T cell, naive T cell, T follicular helper cell, effector T cell, memory T cell, induced T-regulatory cell, natural T-regulatory cell, T-helper 1 cell, T-helper 17 cell, T-helper 9 cell, CD8-positive, alpha-beta memory T cell, naive thymus-derived CD8-positive, alpha-beta T cell, central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated, T-helper 2 cell	lymphocyte, leukocyte
+CL:0000236	B cell	germinal center B cell, B cell, CD19-positive, memory B cell, naive B cell, unswitched memory B cell, Be cell, class switched memory B cell, plasmablast	lymphocyte, leukocyte
 CL:0000501	granulosa cell		
-CL:0000540	neuron		
-CL:0000542	lymphocyte	"T cell, B cell, CD4-positive, alpha-beta T cell, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell"	leukocyte
-CL:0000362	epidermal cell		
-CL:0000094	granulocyte	"neutrophil, eosinophil, basophil"	"leukocyte, myeloid cell"
-CL:0000576	monocyte		"leukocyte, myeloid cell"
-CL:0000624	"CD4-positive, alpha-beta T cell"		"T cell, lymphocyte, leukocyte"
+CL:0000540	neuron	neuron of cerebral cortex, motor neuron, dopaminergic neuron, peripheral sensory neuron, neuron of the forebrain, spinal cord motor neuron, sensory neuron, GABAergic neuron, excitatory neuron, midbrain dopaminergic neuron, crypt olfactory receptor neuron, glutamatergic neuron	
+CL:0000542	lymphocyte	T cell, B cell, CD4-positive, alpha-beta T cell, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, helper T cell, exhausted T cell, gamma-delta T cell, cytotoxic T cell, germinal center B cell, naive thymus-derived CD4-positive, alpha-beta T cell, naive T cell, T follicular helper cell, effector T cell, B cell, CD19-positive, memory T cell, memory B cell, naive B cell, induced T-regulatory cell, decidual natural killer cell, human, unswitched memory B cell, natural T-regulatory cell, T-helper 1 cell, Be cell, T-helper 17 cell, T-helper 9 cell, class switched memory B cell, plasma cell, CD8-positive, alpha-beta memory T cell, naive thymus-derived CD8-positive, alpha-beta T cell, plasmablast, central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated, T-helper 2 cell	leukocyte
+CL:0000362	epidermal cell	keratinocyte, Merkel cell, foreskin keratinocyte	
+CL:0000094	granulocyte	neutrophil, eosinophil, basophil, mature neutrophil	leukocyte, myeloid cell
+CL:0000576	monocyte	classical monocyte, intermediate monocyte, non-classical monocyte	leukocyte, myeloid cell
+CL:0000624	CD4-positive, alpha-beta T cell	naive thymus-derived CD4-positive, alpha-beta T cell, T follicular helper cell, induced T-regulatory cell, natural T-regulatory cell, T-helper 1 cell, T-helper 17 cell, T-helper 9 cell, T-helper 2 cell	T cell, lymphocyte, leukocyte
 CL:0000765	erythroblast		myeloid cell
-CL:0000235	macrophage	microglial cell	"leukocyte, myeloid cell"
-CL:0000062	osteoblast		
-CL:0000136	fat cell		
-CL:0000125	glial cell	microglial cell	
+CL:0000235	macrophage	microglial cell, Kupffer cell, pleural macrophage, alveolar macrophage, inflammatory macrophage, alternatively activated macrophage	leukocyte, myeloid cell
+CL:0000062	osteoblast	calvarial osteoblast	
+CL:0000136	fat cell	white fat cell, brown fat cell, subcutaneous fat cell	
+CL:0000125	glial cell	microglial cell, astrocyte, oligodendrocyte, Schwann cell	
 CL:0000547	proerythroblast		myeloid cell
-CL:0000451	dendritic cell		leukocyte
-CL:0000775	neutrophil		"granulocyte, leukocyte, myeloid cell"
-CL:0000138	chondrocyte		
+CL:0000451	dendritic cell	plasmacytoid dendritic cell, myeloid dendritic cell, conventional dendritic cell, plasmacytoid dendritic cell, human	leukocyte
+CL:0000775	neutrophil	mature neutrophil	granulocyte, leukocyte, myeloid cell
+CL:0000138	chondrocyte	articular chondrocyte	
 CL:0000077	mesothelial cell	Sertoli cell	
-CL:0002334	preadipocyte		fibroblast
-CL:0000623	natural killer cell		"lymphocyte, leukocyte"
-CL:0000625	"CD8-positive, alpha-beta T cell"		"T cell, lymphocyte, leukocyte"
-CL:0000738	leukocyte	"T cell, B cell, lymphocyte, granulocyte, monocyte, CD4-positive, alpha-beta T cell, macrophage, dendritic cell, neutrophil, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, microglial cell, helper T cell, exhausted T cell, gamma-delta T cell, mast cell, eosinophil, cytotoxic T cell, basophil"	
-CL:0000815	regulatory T cell		"T cell, lymphocyte, leukocyte"
+CL:0002334	preadipocyte	brown preadipocyte, subcutaneous preadipocyte	fibroblast
+CL:0000623	natural killer cell	decidual natural killer cell, human	lymphocyte, leukocyte
+CL:0000625	CD8-positive, alpha-beta T cell	CD8-positive, alpha-beta memory T cell, naive thymus-derived CD8-positive, alpha-beta T cell, central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated	T cell, lymphocyte, leukocyte
+CL:0000738	leukocyte	T cell, B cell, lymphocyte, granulocyte, monocyte, CD4-positive, alpha-beta T cell, macrophage, dendritic cell, neutrophil, natural killer cell, CD8-positive, alpha-beta T cell, regulatory T cell, microglial cell, helper T cell, exhausted T cell, gamma-delta T cell, mast cell, eosinophil, cytotoxic T cell, basophil, germinal center B cell, naive thymus-derived CD4-positive, alpha-beta T cell, naive T cell, T follicular helper cell, effector T cell, B cell, CD19-positive, memory T cell, memory B cell, naive B cell, Kupffer cell, mature neutrophil, plasmacytoid dendritic cell, myeloid dendritic cell, induced T-regulatory cell, conventional dendritic cell, decidual natural killer cell, human, unswitched memory B cell, pleural macrophage, alveolar macrophage, natural T-regulatory cell, T-helper 1 cell, Be cell, classical monocyte, T-helper 17 cell, T-helper 9 cell, class switched memory B cell, intermediate monocyte, plasmacytoid dendritic cell, human, non-classical monocyte, plasma cell, CD8-positive, alpha-beta memory T cell, naive thymus-derived CD8-positive, alpha-beta T cell, plasmablast, central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated, inflammatory macrophage, T-helper 2 cell, alternatively activated macrophage	
+CL:0000815	regulatory T cell	induced T-regulatory cell, natural T-regulatory cell	T cell, lymphocyte, leukocyte
 CL:0000351	trophoblast cell		
 CL:0011012	neural crest cell		stem cell
 CL:0000232	erythrocyte		myeloid cell
 CL:0000023	oocyte		
-CL:0002079	pancreatic ductal cell		
-CL:0000216	Sertoli cell		mesothelial cell
-CL:0000669	pericyte cell	mesangial cell	
-CL:0002633	respiratory basal cell		stem cell
+CL:0002079	pancreatic ductal cell		duct epithelial cell
+CL:0000216	Sertoli cell		mesothelial cell, duct epithelial cell
+CL:0000669	pericyte cell	mesangial cell, brain pericyte	
+CL:0002633	respiratory basal cell		stem cell, respiratory epithelial cell
 CL:0000632	hepatic stellate cell		fibroblast
 CL:0000650	mesangial cell		pericyte cell
 CL:0000214	synovial cell		
-CL:1000488	cholangiocyte		
-CL:0000129	microglial cell		"macrophage, glial cell, leukocyte, myeloid cell"
-CL:0000912	helper T cell		"T cell, lymphocyte, leukocyte"
+CL:1000488	cholangiocyte		duct epithelial cell
+CL:0000129	microglial cell		macrophage, glial cell, leukocyte, myeloid cell
+CL:0000912	helper T cell		T cell, lymphocyte, leukocyte, effector T cell
 CL:0002193	myelocyte		myeloid cell
 CL:0000835	myeloblast		myeloid cell
 CL:0000185	myoepithelial cell		
 CL:0002410	pancreatic stellate cell		fibroblast
-CL:0011025	exhausted T cell		"T cell, lymphocyte, leukocyte"
-CL:0000798	gamma-delta T cell		"T cell, lymphocyte, leukocyte"
-CL:0000097	mast cell		"leukocyte, myeloid cell"
-CL:0000771	eosinophil		"granulocyte, leukocyte, myeloid cell"
+CL:0011025	exhausted T cell		T cell, lymphocyte, leukocyte, effector T cell
+CL:0000798	gamma-delta T cell		T cell, lymphocyte, leukocyte
+CL:0000097	mast cell		leukocyte, myeloid cell
+CL:0000771	eosinophil		granulocyte, leukocyte, myeloid cell
 CL:0000556	megakaryocyte		myeloid cell
-CL:0000910	cytotoxic T cell		"T cell, lymphocyte, leukocyte"
-CL:0000158	club cell		epithelial cell
-CL:0000767	basophil		"granulocyte, leukocyte, myeloid cell"
-CL:0000584	enterocyte		
-CL:0000763	myeloid cell	"granulocyte, monocyte, erythroblast, macrophage, proerythroblast, neutrophil, erythrocyte, microglial cell, myelocyte, myeloblast, mast cell, eosinophil, megakaryocyte, basophil"	
+CL:0000910	cytotoxic T cell		T cell, lymphocyte, leukocyte, effector T cell
+CL:0000158	club cell		epithelial cell, bronchial epithelial cell, respiratory epithelial cell
+CL:0000767	basophil		granulocyte, leukocyte, myeloid cell
+CL:0000584	enterocyte		intestinal epithelial cell
+CL:0000763	myeloid cell	granulocyte, monocyte, erythroblast, macrophage, proerythroblast, neutrophil, erythrocyte, microglial cell, myelocyte, myeloblast, mast cell, eosinophil, megakaryocyte, basophil, Kupffer cell, mature neutrophil, myeloid dendritic cell, pleural macrophage, alveolar macrophage, metamyelocyte, promyelocyte, classical monocyte, intermediate monocyte, non-classical monocyte, inflammatory macrophage, alternatively activated macrophage	
 CL:0001064	malignant cell		
+CL:0000132	corneal endothelial cell		
+CL:1001608	foreskin fibroblast		fibroblast, skin fibroblast
+CL:1000398	endothelial cell of hepatic sinusoid		endothelial cell
+CL:0000192	smooth muscle cell	myometrial cell, vascular associated smooth muscle cell, aortic smooth muscle cell, bronchial smooth muscle cell	muscle cell
+CL:0002328	bronchial epithelial cell	club cell	epithelial cell, respiratory epithelial cell
+CL:0002322	embryonic stem cell		stem cell
+CL:2000008	microvascular endothelial cell	brain microvascular endothelial cell, bladder microvascular endothelial cell, adipose microvascular endothelial cell	endothelial cell, endothelial cell of vascular tree
+CL:0000844	germinal center B cell		B cell, lymphocyte, leukocyte, B cell, CD19-positive
+CL:0002327	mammary gland epithelial cell		
+CL:0002609	neuron of cerebral cortex		neuron, neuron of the forebrain
+CL:0000312	keratinocyte	Merkel cell, foreskin keratinocyte	epidermal cell
+CL:0000100	motor neuron	spinal cord motor neuron	neuron
+CL:0000895	naive thymus-derived CD4-positive, alpha-beta T cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte, naive T cell
+CL:0000134	mesenchymal stem cell		stem cell
+CL:0000700	dopaminergic neuron	midbrain dopaminergic neuron	neuron
+CL:0000746	cardiac muscle cell		muscle cell
+CL:0000242	Merkel cell		epidermal cell, keratinocyte
+CL:0000898	naive T cell	naive thymus-derived CD4-positive, alpha-beta T cell, naive thymus-derived CD8-positive, alpha-beta T cell	T cell, lymphocyte, leukocyte
+CL:0002368	respiratory epithelial cell	epithelial cell, respiratory basal cell, club cell, bronchial epithelial cell	
+CL:0002620	skin fibroblast	foreskin fibroblast, fibroblast of arm, fibroblast of dermis	fibroblast
+CL:0000448	white fat cell		fat cell
+CL:0000449	brown fat cell		fat cell
+CL:0002372	myotube		muscle cell
+CL:0002038	T follicular helper cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte
+CL:0000911	effector T cell	helper T cell, exhausted T cell, cytotoxic T cell	T cell, lymphocyte, leukocyte
+CL:0000127	astrocyte		glial cell
+CL:3000004	peripheral sensory neuron		neuron, sensory neuron
+CL:0001201	B cell, CD19-positive	germinal center B cell, memory B cell, naive B cell, unswitched memory B cell, Be cell, class switched memory B cell, plasmablast	B cell, lymphocyte, leukocyte
+CL:0000813	memory T cell	CD8-positive, alpha-beta memory T cell, central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated	T cell, lymphocyte, leukocyte
+CL:0002231	epithelial cell of prostate		
+CL:0002366	myometrial cell		muscle cell, smooth muscle cell
+CL:0012001	neuron of the forebrain	neuron of cerebral cortex	neuron
+CL:2000095	cord blood hematopoietic stem cell		stem cell, hematopoietic stem cell
+CL:0000359	vascular associated smooth muscle cell	aortic smooth muscle cell	muscle cell, smooth muscle cell
+CL:0000787	memory B cell	unswitched memory B cell, class switched memory B cell	B cell, lymphocyte, leukocyte, B cell, CD19-positive
+CL:0000788	naive B cell		B cell, lymphocyte, leukocyte, B cell, CD19-positive
+CL:0002586	retinal pigment epithelial cell		
+CL:0000091	Kupffer cell		macrophage, leukocyte, myeloid cell
+CL:0000037	hematopoietic stem cell	cord blood hematopoietic stem cell	stem cell
+CL:0000096	mature neutrophil		granulocyte, neutrophil, leukocyte, myeloid cell
+CL:0000784	plasmacytoid dendritic cell	plasmacytoid dendritic cell, human	dendritic cell, leukocyte
+CL:0000782	myeloid dendritic cell		dendritic cell, leukocyte, myeloid cell, conventional dendritic cell
+CL:0000902	induced T-regulatory cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte, regulatory T cell
+CL:0000128	oligodendrocyte		glial cell
+CL:2000058	calvarial osteoblast		osteoblast
+CL:0000990	conventional dendritic cell	myeloid dendritic cell	dendritic cell, leukocyte
+CL:2000015	fibroblast of arm		fibroblast, skin fibroblast
+CL:0010002	epithelial cell of umbilical artery		
+CL:0002551	fibroblast of dermis		fibroblast, skin fibroblast
+CL:2000066	cardiac ventricle fibroblast		fibroblast, fibroblast of cardiac tissue
+CL:2000093	bronchus fibroblast of lung		fibroblast
+CL:0002138	endothelial cell of lymphatic vessel		endothelial cell, endothelial cell of vascular tree
+CL:0002343	decidual natural killer cell, human		lymphocyte, natural killer cell, leukocyte
+CL:0002563	intestinal epithelial cell	enterocyte, colon epithelial cell	
+CL:0000082	epithelial cell of lung	lung endothelial cell	
+CL:0000653	glomerular visceral epithelial cell		
+CL:1001607	articular chondrocyte		chondrocyte
+CL:0000529	pigmented epithelial cell	pigmented ciliary epithelial cell	
+CL:0000970	unswitched memory B cell		B cell, lymphocyte, leukocyte, B cell, CD19-positive, memory B cell
+CL:1001568	pulmonary artery endothelial cell		endothelial cell, endothelial cell of vascular tree, endothelial cell of artery
+CL:0002247	pleural macrophage		macrophage, leukocyte, myeloid cell
+CL:0000583	alveolar macrophage		macrophage, leukocyte, myeloid cell
+CL:0002139	endothelial cell of vascular tree	microvascular endothelial cell, endothelial cell of lymphatic vessel, pulmonary artery endothelial cell, aortic endothelial cell, brain microvascular endothelial cell, endothelial cell of artery, lung endothelial cell, bladder microvascular endothelial cell, adipose microvascular endothelial cell	endothelial cell
+CL:0002306	epithelial cell of proximal tubule		
+CL:2000068	pericardium fibroblast		fibroblast
+CL:0002188	glomerular endothelial cell		endothelial cell
+CL:2000043	brain pericyte		pericyte cell
+CL:0002544	aortic endothelial cell		endothelial cell, endothelial cell of vascular tree, endothelial cell of artery
+CL:0000903	natural T-regulatory cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte, regulatory T cell
+CL:0002573	Schwann cell		glial cell
+CL:0002350	endocardial cell		endothelial cell
+CL:0002548	fibroblast of cardiac tissue	cardiac ventricle fibroblast	fibroblast
+CL:0002335	brown preadipocyte		fibroblast, preadipocyte
+CL:2000044	brain microvascular endothelial cell		endothelial cell, microvascular endothelial cell, endothelial cell of vascular tree
+CL:0011001	spinal cord motor neuron		neuron, motor neuron
+CL:0002303	pigmented ciliary epithelial cell		pigmented epithelial cell
+CL:0002192	metamyelocyte		myeloid cell
+CL:0000836	promyelocyte		myeloid cell
+CL:1000413	endothelial cell of artery	pulmonary artery endothelial cell, aortic endothelial cell	endothelial cell, endothelial cell of vascular tree
+CL:1001606	foreskin keratinocyte		epidermal cell, keratinocyte
+CL:0000101	sensory neuron	peripheral sensory neuron, crypt olfactory receptor neuron	neuron
+CL:0000617	GABAergic neuron		neuron
+CL:0002583	subcutaneous preadipocyte		fibroblast, preadipocyte
+CL:0000545	T-helper 1 cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte
+CL:0000968	Be cell		B cell, lymphocyte, leukocyte, B cell, CD19-positive
+CL:0002521	subcutaneous fat cell		fat cell
+CL:0008030	excitatory neuron		neuron
+CL:1001567	lung endothelial cell		endothelial cell, epithelial cell of lung, endothelial cell of vascular tree
+CL:0000860	classical monocyte		monocyte, leukocyte, myeloid cell
+CL:0000899	T-helper 17 cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte
+CL:0002539	aortic smooth muscle cell		muscle cell, smooth muscle cell, vascular associated smooth muscle cell
+CL:0002061	T-helper 9 cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte
+CL:0011108	colon epithelial cell		intestinal epithelial cell
+CL:0002565	iris pigment epithelial cell		
+CL:0000972	class switched memory B cell		B cell, lymphocyte, leukocyte, B cell, CD19-positive, memory B cell
+CL:0000706	choroid plexus epithelial cell		
+CL:0002598	bronchial smooth muscle cell		muscle cell, smooth muscle cell
+CL:2000040	bladder microvascular endothelial cell		endothelial cell, microvascular endothelial cell, endothelial cell of vascular tree
+CL:0000575	corneal epithelial cell		
+CL:0002224	lens epithelial cell		
+CL:2000072	adipose microvascular endothelial cell		endothelial cell, microvascular endothelial cell, endothelial cell of vascular tree
+CL:0000068	duct epithelial cell	pancreatic ductal cell, Sertoli cell, cholangiocyte	
+CL:2000097	midbrain dopaminergic neuron		neuron, dopaminergic neuron
+CL:0000849	crypt olfactory receptor neuron		neuron, sensory neuron
+CL:0002393	intermediate monocyte		monocyte, leukocyte, myeloid cell
+CL:0000679	glutamatergic neuron		neuron
+NA	Non plasma B-cells		
+CL:0001058	plasmacytoid dendritic cell, human		dendritic cell, leukocyte, plasmacytoid dendritic cell
+CL:0000875	non-classical monocyte		monocyte, leukocyte, myeloid cell
+CL:0000786	plasma cell		lymphocyte, leukocyte
+CL:0000909	CD8-positive, alpha-beta memory T cell	central memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, effector memory CD8-positive, alpha-beta T cell, terminally differentiated	T cell, lymphocyte, CD8-positive, alpha-beta T cell, leukocyte, memory T cell
+CL:0000900	naive thymus-derived CD8-positive, alpha-beta T cell		T cell, lymphocyte, CD8-positive, alpha-beta T cell, leukocyte, naive T cell
+NA	Naive T-helpers		
+NA	Central memory T-helpers		
+NA	Transitional memory T-helpers		
+NA	T-helpers TEMRA		
+NA	Effector memory T-helpers		
+NA	CD57pos Cytotoxic NK cells		
+NA	CD57neg Cytotoxic NK cells		
+NA	CD27neg memory B-cells		
+NA	Regulatory NK cells		
+CL:0000980	plasmablast		B cell, lymphocyte, leukocyte, B cell, CD19-positive
+NA	Cytotoxic NK cells		
+CL:0000907	central memory CD8-positive, alpha-beta T cell		T cell, lymphocyte, CD8-positive, alpha-beta T cell, leukocyte, memory T cell, CD8-positive, alpha-beta memory T cell
+NA	CD8+ Ttm		
+CL:0000913	effector memory CD8-positive, alpha-beta T cell		T cell, lymphocyte, CD8-positive, alpha-beta T cell, leukocyte, memory T cell, CD8-positive, alpha-beta memory T cell
+CL:0001062	effector memory CD8-positive, alpha-beta T cell, terminally differentiated		T cell, lymphocyte, CD8-positive, alpha-beta T cell, leukocyte, memory T cell, CD8-positive, alpha-beta memory T cell
+CL:0000863	inflammatory macrophage		macrophage, leukocyte, myeloid cell
+NA	CD8+ T-cells PD1 low		
+CL:0000546	T-helper 2 cell		T cell, lymphocyte, CD4-positive, alpha-beta T cell, leukocyte
+NA	CD8+ T-cells PD1 high		
+CL:0000890	alternatively activated macrophage		macrophage, leukocyte, myeloid cell
