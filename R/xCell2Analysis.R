@@ -59,6 +59,7 @@ xCell2Analysis <- function(mix, xcell2ref){
   #   pivot_wider(names_from = samples, values_from = predictions) %>%
   #   as.data.frame()
   
+  
   rownames(xCell2_out) <- xCell2_out[,1]
   xCell2_out <- xCell2_out[,-1]
   
