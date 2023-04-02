@@ -1,6 +1,6 @@
 # Main functions for xCell2
 
-setwd(dir = "/home/almogangel/xCell2_git/")
+setwd(dir = "/Users/noam/Desktop/Technion/bioinformatics project/xCell2")
 
 #########################################################################################
 # Generate cell-type lineage automatically
