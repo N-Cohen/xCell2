@@ -1,11 +1,9 @@
 library(shiny)
 library(magrittr)
 library(devtools)
-
 library(tidyr)
 library(dplyr)
 
-source("https://raw.githubusercontent.com/N-Cohen/xCell2/master/R/xCell2Analysis.R")
 
 setwd("/Users/noam/Desktop/Technion/bioinformatics project/xCell2")
 options(shiny.maxRequestSize = 100*1024^2) # 100MB
