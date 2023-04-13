@@ -1,41 +1,24 @@
 library(tidyverse)
 
-# This function return a pseudo-bulk expression matrix give a single cell RNA-Seq data.
-sc2pseudoBulk <- function(ref, labels, is_10x){
-  if (class(ref) == "Seurat") {
-    celltypes <- unique(labels$label)
-    mat <- Seurat::GetAssayData(ref, assay = 'RNA', slot = 'data')
-    for (ct in celltypes) {
-      ct_mat <- mat[, labels$label == ct]
-      if (!is_10x) {
-        ct_mat[rowMeans(log2(ct_mat)) < 0.75,] <- 0 # Only for full length scRNA-Seq methods
-      }
-      if (ncol(ct_mat) >= 3) { # Minimum 3 cells per cluster to be a reference
-        for (i in 1:5) { # Make five pseudo-bulk samples
-          tmp_bulk <- rowSums(ct_mat[,sample(ncol(ct_mat), round(ncol(ct_mat)*0.5))]) # Use 50% of cells in the cluster each time
-          if (i == 1L) {
-            ct_mat_bulk <- tmp_bulk
-          }else{
-            ct_mat_bulk <- cbind(ct_mat_bulk, tmp_bulk)
-          }
-        }
-        colnames(ct_mat_bulk) <- paste0(ct, ".", 1:5)
-        if(ct==celltypes[1]){
-          mat_bulk <- ct_mat_bulk
-          lables_new <- data.frame("ont" = rep(unique(labels[labels$label == ct,1]), 5), "label" = rep(ct, 5), row.names = colnames(ct_mat_bulk))
-        }else{
-          mat_bulk <- cbind(mat_bulk, ct_mat_bulk)
-          lables_new <- rbind(lables_new, data.frame("ont" = rep(unique(labels[labels$label == ct,1]), 5), "label" = rep(ct, 5), row.names = colnames(ct_mat_bulk)))
-        }
-      }else{
-        print(paste0("WARNING: minimum 3 cells for ", ct, " required"))
-      }
-    }
-    mat_bulk <- mat_bulk[rowSums(mat_bulk) > 0,]
-  }else{
-    # TODO: Make pseudo bulk for non-Seurat object
+getTopVariableGenes <- function(ref, min_genes, sensitivity){
+
+  ref.srt <- Seurat::CreateSeuratObject(counts = ref)
+  ref.srt <- Seurat::FindVariableFeatures(ref.srt, selection.method = "vst")
+  plot1 <- Seurat::VariableFeaturePlot(ref.srt)
+  genesVar <- plot1$data$variance.standardized
+  names(genesVar) <- rownames(plot1$data)
+  genesVar <- sort(genesVar, decreasing = TRUE)
+  idx <- 1:length(genesVar)
+  KneeCutOff <- kneedle::kneedle(idx, genesVar, sensitivity = sensitivity)[2]
+  #ggplot(data.frame(x=idx, y=genesVar), aes(x=x, y=y)) +
+  #  geom_point()+
+  #  geom_hline(yintercept = KneeCutOff, col="red")
+  topGenesVar <- names(genesVar[genesVar >= KneeCutOff])
+
+  if (length(topGenesVar) < min_genes) {
+    topGenesVar <- names(genesVar[1:min_genes])
   }
-  return(list("pseudoBulk" = as.matrix(mat_bulk), "newLabels" = lables_new))
+  return(topGenesVar)
 }
 
 # Generate a matrix of median expression of pure cell types
@@ -57,17 +40,19 @@ makePureCTMat <- function(ref, labels){
 }
 
 # This function return a correlation matrix given the counts and cell types
-getCellTypeCorrelation <- function(pure_ct_mat){
+getCellTypeCorrelation <- function(pure_ct_mat, data_type){
 
   celltypes <- colnames(pure_ct_mat)
 
-  # Use top 3K highly variable genes
-  mean_gene_expression <- Rfast::rowmeans(pure_ct_mat)
-  high_gene_expression_cutoff <- quantile(mean_gene_expression, 0.5, na.rm=TRUE) # Cutoff for top 50% expression genes
-  top_expressed_gene <- mean_gene_expression > high_gene_expression_cutoff
-  genes_sd <- apply(pure_ct_mat[top_expressed_gene,], 1, sd)
-  sd_cutoff <-  sort(genes_sd, decreasing = TRUE)[1001]# Get top 1K genes with high SD as highly variable genes
-  pure_ct_mat <- pure_ct_mat[genes_sd > sd_cutoff,]
+  if (data_type != "sc") {
+    # Use top 3K highly variable genes
+    mean_gene_expression <- Rfast::rowmeans(pure_ct_mat)
+    high_gene_expression_cutoff <- quantile(mean_gene_expression, 0.5, na.rm=TRUE) # Cutoff for top 50% expression genes
+    top_expressed_gene <- mean_gene_expression > high_gene_expression_cutoff
+    genes_sd <- apply(pure_ct_mat[top_expressed_gene,], 1, sd)
+    sd_cutoff <-  sort(genes_sd, decreasing = TRUE)[1001]# Get top 1K genes with high SD as highly variable genes
+    pure_ct_mat <- pure_ct_mat[genes_sd > sd_cutoff,]
+  }
 
   # Make correlation matrix
   cor_mat <- matrix(1, ncol = length(celltypes), nrow = length(celltypes), dimnames = list(celltypes, celltypes))
@@ -85,15 +70,17 @@ getCellTypeCorrelation <- function(pure_ct_mat){
 
 
 # This function return a vector of cell type dependencies
-getDependencies <- function(ontology_file_checked){
-  ont <- read_tsv(ontology_file_checked, show_col_types = FALSE)
+getDependencies <- function(lineage_file_checked){
+  ont <- read_tsv(lineage_file_checked, show_col_types = FALSE)
 
   celltypes <- pull(ont[,2])
+  celltypes <- gsub("_", "-", celltypes)
   dep_list <- vector(mode = "list", length = length(celltypes))
   names(dep_list) <- celltypes
 
   for (i in 1:nrow(ont)) {
     dep_cells <- c(strsplit(pull(ont[i,3]), ";")[[1]], strsplit(pull(ont[i,4]), ";")[[1]])
+    dep_cells <- gsub("_", "-", dep_cells)
     dep_list[[i]] <- dep_cells[!is.na(dep_cells)]
   }
 

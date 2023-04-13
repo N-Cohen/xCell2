@@ -90,8 +90,11 @@ createSignatures <- function(ref, labels, dep_list, quantiles_matrix, probs, cor
             all_sigs[[sig_name]] <- GSEABase::GeneSet(genes, setName = sig_name)
           }
         }
+
       }
+
     }
+
   }
 
   if (length(all_sigs) == 0) {
@@ -101,6 +104,13 @@ createSignatures <- function(ref, labels, dep_list, quantiles_matrix, probs, cor
   # Make GeneSetCollection object
   signatures_collection <- GSEABase::GeneSetCollection(all_sigs)
 
+  # Check if every cell type got at least one signature
+  sig_type <- unlist(lapply(strsplit(names(signatures_collection), "#"), "[", 1))
+  no_sig_cts <- celltypes[!celltypes %in% sig_type]
+
+  if (length(no_sig_cts) != 0) {
+    warning(paste("No signatures found for cell type(s): ", no_sig_cts, collapse = " "))
+  }
+
   return(signatures_collection)
 }
-

@@ -82,5 +82,6 @@ View(dep_table)
 
 ```{r}
 source("https://raw.githubusercontent.com/N-Cohen/xCell2/master/R/xCell2Train.R")
+library(Rfast)
 xcell2sigs_bp <- xCell2Train(ref = bp_ref, labels = bp_labels, lineage_file_checked = "bp_dependencies.tsv", data_type = "rnaseq")
 ```

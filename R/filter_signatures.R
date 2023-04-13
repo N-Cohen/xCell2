@@ -9,19 +9,38 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
 
       controls2use <- names(dep_list)[!names(dep_list) %in% c(ct, dep_list[[ct]])]
 
+      n_ds <- length(unique(labels$dataset)) # This number of datasets will effect the sampling of controls
+      n_slice <- ifelse(n_ds >= max_control_type, 1, round((max_control_type/n_ds)+0.5))
+
+
       controls <- sapply(1:length(mixture_fractions), function(x){
+
         labels %>%
-          filter(label %in% controls2use) %>%
-          group_by(dataset) %>%
+          filter(label %in% controls2use) %>% # Only controls
+          group_by(dataset, label) %>%
           slice_sample(n=1) %>% # One cell type per dataset
-          group_by(label) %>%
-          slice_sample(n=1) %>% # One sample per datasets
+          group_by(dataset) %>%
+          slice_sample(n=n_slice) %>%
           ungroup() %>%
           slice_sample(n=max_control_type) %>%
           pull(sample) %>%
           ref[,.] %>%
           as.matrix() %>%
           Rfast::rowmeans()
+
+        # labels %>%
+        #   filter(label %in% controls2use) %>%
+        #   group_by(dataset) %>%
+        #   slice_sample(n=1) %>% # One cell type per dataset
+        #   group_by(label) %>%
+        #   slice_sample(n=1) %>% # One sample per datasets
+        #   ungroup() %>%
+        #   slice_sample(n=max_control_type) %>%
+        #   pull(sample) %>%
+        #   ref[,.] %>%
+        #   as.matrix() %>%
+        #   Rfast::rowmeans()
+
       })
 
       controls_fracs <- controls %*% diag(1-mixture_fractions)
@@ -108,6 +127,10 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
 
   for (type in celltypes) {
 
+    if (sum(type == sig_type) == 0) {
+      errorCondition(paste0("No signatures found for cell type: ", type))
+    }
+
     type_signatures <- signatures_collection[type == sig_type]
     dep_cells <- dep_list[[type]]
 
@@ -166,4 +189,3 @@ filterSignatures <- function(ref, labels, pure_ct_mat, dep_list, signatures_coll
 
   return(filter_signature_out)
 }
-
